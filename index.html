@@ -8,20 +8,20 @@
   <style type="text/css">
     body {
       margin-top: 1.0em;
-      background-color: #38994d;
+      background-color: #A0D9F9;
       font-family: Helvetica, Arial, FreeSans, san-serif;
-      color: #ffffff;
+      color: #00000;
     }
     #container {
       margin: 0 auto;
       width: 700px;
     }
-    h1 { font-size: 3.8em; color: #c766b2; margin-bottom: 3px; }
+    h1 { font-size: 3.4em; color: #000000; margin-bottom: 3px; }
     h1 .small { font-size: 0.4em; }
     h1 a { text-decoration: none }
-    h2 { font-size: 1.5em; color: #c766b2; }
-    h3 { text-align: center; color: #c766b2; }
-    a { color: #c766b2; }
+    h2 { font-size: 1.5em; color: #000000; }
+    h3 { text-align: center; color: #000000; }
+    a { color: #000000; }
     .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
     .download { float: right; }
     pre { background: #000; color: #fff; padding: 15px;}
@@ -31,48 +31,39 @@
 </head>
 
 <body>
-  <a href="https://github.com/statismo/statismo"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+<!--  <a href="https://github.com/statismo/statismo"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>-->
 
   <div id="container">
 
-    <div class="download">
-      <a href="https://github.com/statismo/statismo/zipball/master">
-        <img border="0" width="90" src="https://github.com/images/modules/download/zip.png"></a>
-      <a href="https://github.com/statismo/statismo/tarball/master">
-        <img border="0" width="90" src="https://github.com/images/modules/download/tar.png"></a>
-    </div>
 
-    <h1><a href="https://github.com/statismo/statismo">statismo</a>
-      <span class="small">by <a href="https://github.com/statismo">statismo</a></span></h1>
+    <h1>StatISMo <span class="small">- Statistical Image and Shape Models</span> </h1>
+  
 
     <div class="description">
-      Framework for building Statistical Image And Shape Models
+      A framework for building Statistical Image And Shape Models
     </div>
 
     
-      <p>Statismo provides a flexible framework for generating and manipulating Statistical Shape and Image Models.
-The idea behind such models is to generate a compact, low dimensional probability distribution model of the variability, such that new, statistical plausible samples may be extracted, or that a given object may be approximated through a small set of parameters.
-The most commonly known examples of such models are the Eigenfaces model (Turk and Pentland), Active Shape and Appearence models (Cootes and Taylor, 1995/1998) and the Morphable Model (Blanz and Vetter, 1999), The core library is designed to be independent of the representation of the given data set and can thus be used with many different standard libraries such as VTK and ITK. 
-The link to these libraries is given by a special Representer class, which abstracts all library specific representations and also provides methods to convert the datasets to the vector representation used by Statismo. 
-In the current version, Statismo supports statistical only linear PCA models. The implementation and interpretation 
-is based on Probabilistic PCA, which generalizes the standard PCA models and gives a fully probabilistic interpretation. </p>
-    
-
+      <p>Statismo provides a versatile framework for generating and
+	manipulating Statistical Shape and Image Models. It supports 
+	all commonly known types of statistical models, including
+	Shape models, Deformation Models and Appearance Models. 
+	The implementation and interpretation is based on Probabilistic PCA, which
+	generalizes the standard PCA models and gives a fully
+	probabilistic interpretation. 
+      </p>
     
       <h2>Dependencies</h2>
-      <p>In order to use Statismo, a current version of HDF5 needs to be install (www.hdfgroup.org/HDF5/)</p>
+      <p>In order to use Statismo, a current version of <a href="www.hdfgroup.org/HDF5/">HDF5</a> needs to be installed. </p>
     
 
     
       <h2>Install</h2>
       <p>Statismo is a header only library. No installation is required for the library itself. However HDF5 (CMake build) has to be installed. 
-Depending on the type of model you build, you may also need install VTK (www.vtk.org) or ITK (www.itk.org)</p>
-    
-
+Depending on the type of model you build, you may also need install <a href="www.vtk.org">VTK</a> or <a href="www.itk.org">ITK </a>.</p>
     
       <h2>License</h2>
       <p>BSD </p>
-    
 
     
       <h2>Authors</h2>
