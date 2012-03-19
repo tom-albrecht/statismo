@@ -1,0 +1,6 @@
+<map id="G" name="G">
+<area shape="rect" id="node1" href="$classstatismo_1_1ModelBuilder.html" title="Common base class for all the model builder classes." alt="" coords="5,59,280,88"/>
+<area shape="rect" id="node3" href="$classstatismo_1_1ConditionalModelBuilder.html" title="Creates a StatisticalModel conditioned on some external data." alt="" coords="333,5,680,35"/>
+<area shape="rect" id="node5" href="$classstatismo_1_1PartiallyFixedModelBuilder.html" title="creates a statistical model (PCA Model), given point constraints (fixed values)" alt="" coords="329,59,684,88"/>
+<area shape="rect" id="node7" href="$classstatismo_1_1PCAModelBuilder.html" title="Creates StatisticalModel using Principal Component Analysis." alt="" coords="356,112,657,141"/>
+</map>
