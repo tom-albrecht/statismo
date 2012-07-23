@@ -1,0 +1,7 @@
+digraph G
+{
+  edge [fontname="FreeSans.ttf",fontsize="10",labelfontname="FreeSans.ttf",labelfontsize="10"];
+  node [fontname="FreeSans.ttf",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="itk::StatisticalModelTransform\< TRepresenter, TScalarType, TDimension \>",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classitk_1_1StatisticalModelTransform.html",tooltip="An itk transform that allows for deformations defined by a given Statistical Model."];
+}

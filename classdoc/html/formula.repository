@@ -11,20 +11,19 @@
 \form#10:$U$
 \form#11:$D$
 \form#12:$U \in \mathbf{R}^{p \times n}$
-\form#13:$ \epsilon $
-\form#14:$nd \times nd$
-\form#15:$d \times d $
-\form#16:$\alpha \in \mathbf{R}^n$
-\form#17:$ (2 \pi)^{- \frac{n}{2}} \exp(||\alpha||) $
+\form#13:$nd \times nd$
+\form#14:$d \times d $
+\form#15:$\alpha \in \mathbf{R}^n$
+\form#16:$ (2 \pi)^{- \frac{n}{2}} \exp(||\alpha||) $
+\form#17:$\alpha$
 \form#18:$\alpha $
 \form#19:$S$
 \form#20:$ S = \mu + U \alpha$
-\form#21:$\alpha$
-\form#22:$\mu \subset \mathbf{R}^d$
-\form#23:$p$
-\form#24:$m$
-\form#25:$m \in \mathbf{R}^{dp} $
-\form#26:$d$
-\form#27:$s \subset \mathbf{R}^d$
-\form#28:$W$
-\form#29:$W \in \mathbf{R}^{dp \times n} $
+\form#21:$\mu \subset \mathbf{R}^d$
+\form#22:$p$
+\form#23:$m$
+\form#24:$m \in \mathbf{R}^{dp} $
+\form#25:$d$
+\form#26:$s \subset \mathbf{R}^d$
+\form#27:$W$
+\form#28:$W \in \mathbf{R}^{dp \times n} $
