@@ -46,9 +46,9 @@
 
     
       <p>Statismo is a C++ library for generating and
-	manipulating Statistical Shape and Image Models. It supports 
+	manipulating PCA based statistical models. It supports 
 	all commonly known types of statistical models, including
-	Shape models, Deformation Models and Appearance Models. 
+	Shape models, Deformation Models and Image (intensity) Models. 
 	The implementation and interpretation is based on Probabilistic PCA, which
 	generalizes the standard PCA models and gives a fully
 	probabilistic interpretation. 
@@ -57,16 +57,15 @@
 	Statismo has been tested on GNU/Linux and Windows. To simplify its use, Statismo provides Python bindings for the most commonly used functionality.
       </p>
       <h2>Dependencies</h2>
-      <p>In order to use Statismo, a current version of <a href="http://www.hdfgroup.org/HDF5/">HDF5</a> needs to be installed. </p>
+      <p>All the libraries on which Statismo depends are distributed together with the Statismo source. Depending on the type of models you want to build, you need in addition 
+      to install <a href="http://www.itk.org">ITK</a> or <a href="http://www.vtk.org">VTK</a>. </p>
     
-
     
-      <h2>Install</h2>
-      <p>Statismo is a header only library. No installation is required for the library itself. However HDF5 has to be installed, as well as 
-	any library that you want to use for representing shapes or images (such as e.g. <a href="http://www.vtk.org">VTK</a> or <a href="http://www.itk.org">ITK</a>).
+      <h2>Installation</h2>
+      <p>Statismo is a header only library and requires, in principle, no installation. However, we provide a CMake based installation procedure, 
+      	which builds the dependencies (<a href="http://www.hdfgroup.org/HDF5/">HDF5</a>), example programs and unit tests, and sets up a CMake configuration that
+      	makes it easy to use Statismo within your projects. Detailed build instructions can be found in the projects <a href="http://github.com/statismo/statismo/">README</a>.
       </p>
-      <h2>License</h2>
-      <p>BSD </p>
 
    
       <h2>Authors</h2>
@@ -78,33 +77,28 @@
       <p>Main design and Implementation:
 	<ul>
 	  <li><a href="http://informatik.unibas.ch/personen/luethi_m.html">Marcel L&uuml;thi</a>, University of Basel</li>
-	  <li><a href="http://www.vision.ee.ethz.ch/members/get_member.cgi?lang=de&printview=y&id=159&name=">Remi Blanc</a>, ETH Zurich </li>
+	  <li><a href="http://www.vision.ee.ethz.ch/members/get_member.cgi?lang=de&printview=y&id=159&name=">Remi Blanc</a>, formerly at ETH Zurich </li>
 	</ul>
       </p>    
-      <!--
-      <p>Contributors:</p>
-	<ul>
-          <li>Thomas Albrecht, University of Basel </li>
-	  <li>Habib Bou-Sleiman, University of Bern</li>
-	  <li>Tobias Gass, ETH Zurich </li>
-       </ul>
-	-->
-    </p>
 
-    <h2>Download</h2>
+    <h2>Downloads</h2>
     <p>
-      Download the latest release (v0.71) in
-      <a href="https://github.com/statismo/statismo/zipball/v0.71">zip</a> or
-      <a href="https://github.com/statismo/statismo/tarball/v0.71">tar </a> format.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
+      Download the latest release (v0.8) as a 
+      <a href="https://github.com/statismo/statismo/zipball/v0.8">zip file</a> or 
+	clone the repository using git:
       <pre>$ git clone git://github.com/statismo/statismo</pre>
     </p>
-    
+      <p>
+      Example data (Face scans and Femur images) can be downloaded <a href="https://github.com/statismo/statismo/download/data">here</a>. 
+   	</p>
     <h2>Detailed information</h2>
-    Please refer to the <a href="http://github.com/statismo/statismo/wiki">Wiki</a> or the <a href="./classdoc/html/index.html">API documentation</a> for more information  <br>
-    Also see the statismo <a href="http://github.com/statismo/statismo/">github</a> page for details. 
+	Detailed information regarding the motivation, mathematical background and usage of Statismo can be found in this <a href="./statismo_ij.pdf">article</a>. 
+	See also our <a href="http://github.com/statismo/statismo/wiki">Wiki</a>, the  <a href="./classdoc/html/index.html">API documentation</a> 
+	as well as the <a href="http://github.com/statismo/statismo/">source</a> repository. 
+
+      <h2>License</h2>
+      <p>BSD </p>
+
 
       <h2>Contact</h2>
       <p> Marcel L&uuml;thi (marcel.luethi@unibas.ch)<br/>      
