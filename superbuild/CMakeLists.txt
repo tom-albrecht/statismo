@@ -4,8 +4,8 @@ project( Statismo-Superbuild )
 
 # set CMAKE_MODULE_PATH for cmake macro/function and modules
 set( CMAKE_MODULE_PATH
-  ${CMAKE_MODULE_PATH}
   ${CMAKE_CURRENT_SOURCE_DIR}/../cmake
+  ${CMAKE_MODULE_PATH}
 )
 
 if( APPLE )
@@ -60,6 +60,7 @@ endif()
 set( cmake_hdf5_libs )
 option( USE_SYSTEM_HDF5 "Use system libraries for HDF5" OFF )
 if( ${USE_SYSTEM_HDF5} MATCHES "OFF" )
+  MESSAGE(STATUS "cmake module path in superbuild = " ${CMAKE_MODULE_PATH})
   include( External-HDF5.cmake )
   set( Statismo_DEPENDENCIES ${Statismo_DEPENDENCIES} HDF5 )
 else()
@@ -84,6 +85,7 @@ else()
   include( ${ITK_USE_FILE} )
 endif()
 
+
 ExternalProject_Add( Statismo
   DEPENDS ${Statismo_DEPENDENCIES}
   DOWNLOAD_COMMAND ""
@@ -94,7 +96,8 @@ ExternalProject_Add( Statismo
   CMAKE_GENERATOR ${EP_CMAKE_GENERATOR}
   CMAKE_ARGS
     ${ep_common_args}
-    ${cmake_hdf5_libs}
+    -DCMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}
+    -DHDF5_ROOT_DIR_HINT=$ENV{HDF5_ROOT_DIR_HINT}
     -DCMAKE_BUILD_TYPE:STRING=${BUILD_TYPE}
     -DITK_SUPPORT:BOOL=ON
     -DVTK_SUPPORT:BOOL=ON

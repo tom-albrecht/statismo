@@ -93,6 +93,9 @@ include_directories( ${Boost_INCLUDE_DIRS} )
 link_directories( ${Boost_LIBRARY_DIRS} )
 add_definitions( -DBOOST_THREAD_VERSION=3 )
 
+
+set( ENV{HDF5_ROOT_DIR_HINT} ${HDF5_ROOT_DIR_HINT})
+
 find_package( HDF5  COMPONENTS C CXX)
 include_directories( ${HDF5_INCLUDE_DIRS} )
 
@@ -104,10 +107,6 @@ if(WIN32)
  set(statismo_LIB_TYPE STATIC)
 endif()
 
-foreach( _library ${HDF5_LIBRARIES} )
-  get_filename_component( _tempDir${_library} ${_library} PATH )
-  list( APPEND HDF5_LIBRARY_DIR ${_tempDir${_library}} )
-endforeach()
 
 option( ITK_SUPPORT "Build ITK Support" ON )
 
