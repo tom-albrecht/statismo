@@ -96,6 +96,8 @@ add_definitions( -DBOOST_THREAD_VERSION=3 )
 
 set( ENV{HDF5_ROOT_DIR_HINT} ${HDF5_ROOT_DIR_HINT})
 
+message(STATUS "root dir in statismo = " $ENV{HDF5_ROOT_DIR_HINT})
+
 find_package( HDF5  COMPONENTS C CXX)
 include_directories( ${HDF5_INCLUDE_DIRS} )
 

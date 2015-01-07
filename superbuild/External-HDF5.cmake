@@ -19,18 +19,18 @@ ExternalProject_add(HDF5
   INSTALL_DIR ${INSTALL_DEPENDENCIES_DIR}
 )
 
-set( ENV{HDF5_ROOT_DIR_HINT} )
-
-# We call find_package once so the variables are available
-find_package(HDF5)
-# translate between the two versions of HDF5
+set( ENV{HDF5_ROOT_DIR_HINT} ${INSTALL_DEPENDENCIES_DIR} )
 set(HDF5_DIR ${HDF_ROOT_DIR})
-get_filename_component(HDF5_LIBRARY_DIRS hdf5 DIRECTORY)
-get_target_property(HDF5_C_LIBRARY hdf5 IMPORTED_IMPLIB_RELEASE)
-get_target_property(HDF5_CXX_LIBRARY hdf5_cpp IMPORTED_IMPLIB_RELEASE)
-
-message(STATUS "HDF5_C_LIBRARY = " ${HDF5_C_LIBRARY}) 
-message(STATUS "BUILD_TYPE = " ${CMAKE_CFG_INTDIR})
+## We call find_package once so the variables are available
+#find_package(HDF5)
+## translate between the two versions of HDF5
+#set(HDF5_DIR ${HDF_ROOT_DIR})
+#get_filename_component(HDF5_LIBRARY_DIRS hdf5 DIRECTORY)
+#get_target_property(HDF5_C_LIBRARY hdf5 IMPORTED_IMPLIB_RELEASE)
+#get_target_property(HDF5_CXX_LIBRARY hdf5_cpp IMPORTED_IMPLIB_RELEASE)
+#
+#message(STATUS "HDF5_C_LIBRARY = " ${HDF5_C_LIBRARY}) 
+#message(STATUS "BUILD_TYPE = " ${CMAKE_CFG_INTDIR})
 
 #if (WIN32)
 #  # On Windows, find_package(HDF5) with cmake 2.8.[8,9] always ends up finding
