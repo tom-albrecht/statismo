@@ -150,6 +150,29 @@ class Utils {
 
     }
 
+    /**
+     * @brief Calculate the pseudo-inverse of a matrix.
+     * @param a the matrix to calculate the pseudo-inverse of.
+     * @param result OUT parameter where the result is stored.
+     * @return a boolean indicating whether the operation was successful.
+     */
+    static bool PseudoInverse(const MatrixType &a, MatrixType &result, double epsilon = std::numeric_limits<typename MatrixType::Scalar>::epsilon())
+    {
+        if(a.rows()<a.cols()) {
+            return false;
+        }
+
+        Eigen::JacobiSVD< MatrixType > svd = a.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+        typename MatrixType::Scalar tolerance = epsilon * std::max(a.cols(), a.rows()) * svd.singularValues().array().abs().maxCoeff();
+
+        result = svd.matrixV() * MatrixType( (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().
+                array().inverse(), 0) ).asDiagonal() * svd.matrixU().adjoint();
+        return true;
+    }
+
+
+
 };
 
 } // namespace statismo

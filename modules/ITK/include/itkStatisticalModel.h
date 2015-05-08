@@ -133,7 +133,7 @@ class StatisticalModel : public Object {
 
     void Load(RepresenterType* representer, const H5::Group& modelRoot) {
         try {
-            SetstatismoImplObj(ImplType::Load(modelRoot));
+            SetstatismoImplObj(ImplType::Load(representer, modelRoot));
         } catch (statismo::StatisticalModelException& s) {
             itkExceptionMacro(<< s.what());
         }
