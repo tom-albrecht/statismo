@@ -38,6 +38,8 @@
 #ifndef STATISMO_ASMPROFILE_H
 #define STATISMO_ASMPROFILE_H
 
+#include "MultiVariateNormalDistribution.h"
+
 namespace statismo {
 
     class ASMProfile {

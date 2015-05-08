@@ -39,6 +39,7 @@
 #define STATISMO_ASMNORMALDIRECTIONPOINTSAMPLER_H
 
 #include "itkPointsLocator.h"
+#include "itkASMPointSampler.h"
 
 namespace itk {
     template <typename ASM>

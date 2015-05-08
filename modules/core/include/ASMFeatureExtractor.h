@@ -38,6 +38,8 @@
 #ifndef STATISMO_ASMFEATUREEXTRACTOR_H
 #define STATISMO_ASMFEATUREEXTRACTOR_H
 
+#include "CommonTypes.h"
+
 namespace H5 {
     class Group;
 }

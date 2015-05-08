@@ -38,6 +38,7 @@
 #ifndef STATISMO_ITKASMFEATUREEXTRACTOR_H
 #define STATISMO_ITKASMFEATUREEXTRACTOR_H
 
+#include <itkObjectFactory.h>
 #include "ASMFeatureExtractor.h"
 
 namespace itk {
