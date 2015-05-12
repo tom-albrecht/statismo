@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     sampler->Init(25, (float)(0.5));
     //sampler->Init(125, (float)(0.5));
 
-    typename ASM::FitterConfigurationPointerType fitConfig = ASM::FitterConfigurationType::New();
+    ASM::FitterConfigurationPointerType fitConfig = ASM::FitterConfigurationType::New();
     fitConfig->Init(5,3,3);
     //fitConfig->Init(5,5,5);
 
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     fitter->Init(fitConfig, model, mesh, image, ASM::PointSamplerPointerType(sampler.GetPointer()));
     for (int i=0; i < 25; ++i) {
         std::cout << "iteration " << i << " start" << std::endl;
-        typename ASM::FitterResultPointerType result = fitter->Fit();
+        ASM::FitterResultPointerType result = fitter->Fit();
         if (!result->IsValid()) {
             std::cout << "invalid result, aborting " <<std::endl;
             exit(0);

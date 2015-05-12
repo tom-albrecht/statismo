@@ -39,6 +39,8 @@
 #ifndef STATISMO_ASMPOINTSAMPLER_H
 #define STATISMO_ASMPOINTSAMPLER_H
 
+#include <vector>
+
 namespace statismo {
     template <typename ASM>
     class ASMPointSampler {

@@ -152,7 +152,7 @@ class Utils {
 
         Eigen::JacobiSVD< MatrixType > svd = a.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-        typename MatrixType::Scalar tolerance = epsilon * std::max(a.cols(), a.rows()) * svd.singularValues().array().abs().maxCoeff();
+        MatrixType::Scalar tolerance = epsilon * std::max(a.cols(), a.rows()) * svd.singularValues().array().abs().maxCoeff();
 
         result = svd.matrixV() * MatrixType( (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().
                 array().inverse(), 0) ).asDiagonal() * svd.matrixU().adjoint();

@@ -50,6 +50,7 @@ namespace itk {
 
     private:
         typedef BSplineInterpolateImageFunction<typename ASM::ImageType, typename ASM::ImagePixelType, typename ASM::ImagePixelType> InterpolatedImageType;
+        typedef typename InterpolatedImageType::CovariantVectorType InterpolatedGradientType;
         typedef DiscreteGaussianImageFilter<typename ASM::ImageType, typename ASM::ImageType> GaussianFilterType;
         float m_sigma;
         typename ASM::ImagePointerType m_image;
@@ -133,7 +134,8 @@ namespace itk {
 
             int i = 0;
             float sum = 0;
-            typename ASM::MeshAdapterType::PointNormalType normal = m_sampler->GetNormalForPoint(point);
+            InterpolatedGradientType normal;
+            normal.CastFrom(m_sampler->GetNormalForPoint(point));
             std::vector<typename ASM::PointType> samples = m_sampler->SampleAtPoint(point);
 
             for(typename std::vector<typename ASM::PointType>::iterator it = samples.begin(); it != samples.end(); ++it) {
@@ -141,6 +143,7 @@ namespace itk {
 
                 typename ASM::ImageType::IndexType index;
                 if (m_image->TransformPhysicalPointToIndex(sample, index)) {
+                    
                     features[i] = m_interpolatedImage->EvaluateDerivative(sample) * normal;
                 } else {
                     features[i] = 999;

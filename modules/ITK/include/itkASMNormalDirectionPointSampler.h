@@ -123,10 +123,13 @@ namespace itk {
             int endExclusive = (m_numberOfPoints + 1) / 2;
 
             typename ASM::MeshAdapterType::PointNormalType normal = GetNormalForPointId(normalPointId);
+            // Convert to an itk::(ContraVariant)Vector, because no operators are overloaded for adding the
+            // covariant vector normal to a point.
+            typename ASM::VectorType normalVector(normal.GetDataPointer());
 
             //std::cout << "sampler indexes: startInclusive="<<startInclusive<<" endExlusive=" << endExclusive << std::endl;
             for(int i = startInclusive; i < endExclusive; ++i) {
-                typename ASM::PointType sample = targetPoint + (normal * i * m_spacing);
+                typename ASM::PointType sample = targetPoint + normalVector * i * m_spacing;
                 //std::cout << "sample(" << i <<") = " << sample << std::endl;
                 samples.push_back(sample);
             }

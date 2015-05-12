@@ -61,6 +61,8 @@ namespace itk {
         typedef itk::ASMTraits<MeshPixelType, ImagePixelType, Dimensions> ASM;
 
         typedef itk::Point <MeshPixelType, Dimensions> PointType;
+        typedef itk::Vector <MeshPixelType, Dimensions> VectorType;
+
 
         typedef itk::Mesh <MeshPixelType, Dimensions> MeshType;
         typedef itk::SmartPointer<MeshType> MeshPointerType;

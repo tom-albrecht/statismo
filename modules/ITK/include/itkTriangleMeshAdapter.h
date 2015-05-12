@@ -40,6 +40,7 @@
 
 #include <itkObject.h>
 #include <itkTriangleCell.h>
+#include <itkCovariantVector.h>
 #include <itkMesh.h>
 #include <vector>
 #include <set>
@@ -95,10 +96,10 @@ public:
   typedef typename CellDataContainer::Pointer     CellDataContainerPointer;
 
   /* Create types for the TriangleMeshAdapter. */
-  typedef typename itk::Vector<PixelType,VDimension>  PointNormalType;
+  typedef typename itk::CovariantVector    <PixelType,VDimension>  PointNormalType;
   typedef typename itk::VectorContainer< PointIdentifier,PointNormalType >     PointNormalsContainer;
   typedef typename PointNormalsContainer::Pointer     PointNormalsContainerPointer;
-  typedef typename itk::Vector<CellPixelType,VDimension>  CellNormalType;
+  typedef typename itk::CovariantVector<CellPixelType, VDimension>  CellNormalType;
   typedef typename itk::VectorContainer< CellIdentifier,CellNormalType >     CellNormalsContainer;
   typedef typename CellNormalsContainer::Pointer     CellNormalsContainerPointer;
 
