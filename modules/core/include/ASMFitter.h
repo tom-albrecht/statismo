@@ -51,11 +51,11 @@ namespace statismo {
         float m_maxCoefficientDistance;
 
     public:
-        void Init(float maxFeatureDistance, float maxShapeDistance, float maxCoefficientDistance) {
-                m_maxFeatureDistance = maxFeatureDistance;
-                m_maxShapeDistance = maxShapeDistance;
-                m_maxCoefficientDistance = maxCoefficientDistance;
-        }
+        ASMFitterConfiguration(float maxFeatureDistance, float maxShapeDistance, float maxCoefficientDistance) :
+                m_maxFeatureDistance(maxFeatureDistance),
+                m_maxShapeDistance(maxShapeDistance),
+                m_maxCoefficientDistance(maxCoefficientDistance)
+        {}
 
 
         float GetMaxFeatureDistance() const {
@@ -71,59 +71,79 @@ namespace statismo {
         }
     };
 
-    template <typename ASM>
+    template <typename TPointSet, typename TImage>
     class ASMFitterResult {
     public:
-        void Init(bool isValid, typename ASM::StatisticalModelType::VectorType coefficients, typename ASM::MeshPointerType mesh) {
-            m_isValid = isValid;
-            m_coefficients = coefficients;
-            m_mesh = mesh;
+        ASMFitterResult(bool isValid, VectorType coefficients, TPointSet* mesh) :
+            m_isValid(isValid),
+            m_coefficients(coefficients),
+            m_mesh(mesh)
+                    {
         }
 
         bool IsValid() {
             return m_isValid;
         }
 
-        typename ASM::StatisticalModelType::VectorType GetCoefficients() {
+         VectorType GetCoefficients() {
             return m_coefficients;
         }
 
-        typename ASM::MeshPointerType GetMesh() {
+         TPointSet* GetMesh() {
             return m_mesh;
         }
 
     private:
         bool m_isValid;
-        typename ASM::StatisticalModelType::VectorType m_coefficients;
-        typename ASM::MeshPointerType m_mesh;
+        VectorType m_coefficients;
+        TPointSet* m_mesh;
     };
 
-    template <typename ASM>
+    template <typename TPointSet, typename TImage>
     class ASMFitter {
-    public:
+        typedef ASMFitter<TPointSet, TImage> ASMFitterType;
+        typedef ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+        typedef ASMPointSampler<TPointSet> PointSamplerType;
+        typedef typename Representer<TPointSet>::PointType PointType;
+        typedef StatisticalModel<TPointSet> StatisticalModelType;
+        typedef ASMFeatureExtractor<TPointSet, TImage> FeatureExtractorType;
 
-        void Init(typename ASM::FitterConfigurationPointerType configuration, typename ASM::ActiveShapeModelPointerType model,
-                  typename ASM::MeshPointerType inputMesh, typename ASM::ImagePointerType targetImage, typename ASM::PointSamplerPointerType sampler) {
-            m_configuration = configuration;
-            m_model = model;
-            m_inputMesh = inputMesh;
-            m_targetImage = targetImage;
-            m_sampler = sampler->SetMesh(m_inputMesh);
-            m_featureExtractor = m_model->GetFeatureExtractor()->SetImage(m_targetImage)->SetMesh(m_inputMesh);
+
+        ASMFitter(const ASMFitterConfiguration& configuration, const ActiveShapeModelType* activeShapeModel,
+                  const TPointSet* inputMesh, const TImage* targetImage, const PointSamplerType* sampler)
+                :
+                m_configuration(configuration),
+                m_model(activeShapeModel),
+                m_inputMesh(inputMesh),
+                m_targetImage(targetImage),
+                m_sampler(sampler),
+                m_featureExtractor(m_model->GetFeatureExtractor()->SetImage(m_targetImage)->SetPointset(m_inputMesh))
+        {
+
         }
 
-        typename ASM::FitterResultPointerType Fit() {
-            typename ASM::StatisticalModelType::PointValueListType constraints;
+    public:
+
+        static ASMFitter<TPointSet, TImage>* Create(const ASMFitterConfiguration& configuration, const ActiveShapeModelType* activeShapeModel,
+                                                    const TPointSet* inputMesh, const TImage* targetImage, const PointSamplerType* sampler) {
+            return new ASMFitter(configuration, activeShapeModel, inputMesh, targetImage, sampler);
+        }
+
+
+        ASMFitterResult<TPointSet, TImage> Fit() {
+            typename StatisticalModelType::PointValueListType constraints;
             std::vector<ASMProfile> profiles = m_model->GetProfiles();
 
-            unsigned int dimensions = ASM::GetDimensions();
+            unsigned int dimensions = m_model->GetStatisticalModel()->GetRepresenter()->GetDimensions();
+
+            std::vector<PointType> domainPoints = m_model->GetStatisticalModel()->GetRepresenter()->GetDomain().GetDomainPoints();
 
             for (std::vector<ASMProfile>::const_iterator profile = profiles.begin(); profile != profiles.end(); ++profile) {
                 unsigned pointId = (*profile).GetPointId();
                 //std::cout << "evaluating @ pointId " << pointId << std::endl;
-                typename ASM::PointType transformedPoint;
+                PointType transformedPoint;
                 float featureDistance = FindBestMatchingPointForProfile(transformedPoint, pointId, (*profile).GetDistribution());
-                if (m_configuration->GetMaxFeatureDistance() == 0 || featureDistance <= m_configuration->GetMaxFeatureDistance()) {
+                if (m_configuration.GetMaxFeatureDistance() == 0 || featureDistance <= m_configuration.GetMaxFeatureDistance()) {
                     statismo::VectorType point(dimensions);
                     for (int i = 0; i < dimensions; ++i) {
                         point[i] = transformedPoint[i];
@@ -131,8 +151,8 @@ namespace statismo {
                     statismo::MultiVariateNormalDistribution marginal = m_model->GetMarginalAtPointId(pointId);
                     float pointDistance = marginal.MahalanobisDistance(point);
 
-                    if (m_configuration->GetMaxShapeDistance() == 0 || pointDistance <= m_configuration->GetMaxShapeDistance()) {
-                        typename ASM::PointType refPoint = m_model->GetStatisticalModel()->GetRepresenter()->GetReference()->GetPoint(pointId);
+                    if (m_configuration.GetMaxShapeDistance() == 0 || pointDistance <= m_configuration.GetMaxShapeDistance()) {
+                        PointType refPoint = domainPoints[pointId];
                         constraints.push_back(std::make_pair(refPoint, transformedPoint));
                     } else {
                         // shape distance is larger than threshold
@@ -142,57 +162,51 @@ namespace statismo {
                 }
             }
 
-            typename ASM::FitterResultPointerType result = InstantiateResult();
+
             if (constraints.size() > 0) {
                 //FIXME: find rigid transformation which minimizes the distances between the constraint pair points
 
-                typename ASM::StatisticalModelType::VectorType coeffs = m_model->GetStatisticalModel()->ComputeCoefficientsForPointValues(constraints, 1e-6);
+                VectorType coeffs = m_model->GetStatisticalModel()->ComputeCoefficientsForPointValues(constraints, 1e-6);
 
-                float maxCoeff = m_configuration->GetMaxCoefficientDistance();
+                float maxCoeff = m_configuration.GetMaxCoefficientDistance();
                 if (maxCoeff > 0) {
                     for (size_t i = 0; i < coeffs.size(); ++i) {
                         coeffs(i) = std::min(maxCoeff, std::max(-maxCoeff, coeffs(i)));
                     }
                 }
-                result->Init(true, coeffs, m_model->GetStatisticalModel()->DrawSample(coeffs));
+                return ASMFitterResult<TPointSet, TImage>(true, coeffs, m_model->GetStatisticalModel()->DrawSample(coeffs));
+
             } else {
                 // Invalid result: coefficients with no content, mesh is null
-                typename ASM::StatisticalModelType::VectorType coeffs;
-                result->Init(false, coeffs , 0);
+                VectorType coeffs;
+                return ASMFitterResult<TPointSet, TImage>(false, coeffs , 0);
             }
-            return result;
+
         }
 
-        virtual typename ASM::FitterPointerType SetMesh(typename ASM::MeshPointerType mesh) = 0;
+        virtual ASMFitterType* SetMesh(TPointSet* mesh) {
+               return  new ASMFitter(m_configuration, m_model, mesh, m_targetImage, m_sampler);
+        };
 
     protected:
-        typename ASM::FitterConfigurationPointerType m_configuration;
-        typename ASM::ActiveShapeModelPointerType m_model;
-        typename ASM::MeshPointerType m_inputMesh;
-        typename ASM::ImagePointerType m_targetImage;
-        typename ASM::PointSamplerPointerType m_sampler;
-        typename ASM::FeatureExtractorPointerType m_featureExtractor;
+        ASMFitterConfiguration m_configuration;
+        const ActiveShapeModelType* m_model;
+        const TPointSet* m_inputMesh;
+        const TImage* m_targetImage;
+        const PointSamplerType* m_sampler;
+        const FeatureExtractorType* m_featureExtractor;
 
-        void Init(typename ASM::FitterConfigurationPointerType configuration, typename ASM::ActiveShapeModelPointerType model,
-                  typename ASM::MeshPointerType inputMesh, typename ASM::ImagePointerType targetImage, typename ASM::PointSamplerPointerType sampler, typename ASM::FeatureExtractorPointerType featureExtractor) {
-            m_configuration = configuration;
-            m_model = model;
-            m_inputMesh = inputMesh;
-            m_targetImage = targetImage;
-            m_sampler = sampler;
-            m_featureExtractor = featureExtractor;
-        }
 
-        virtual typename ASM::FitterResultPointerType InstantiateResult() = 0;
+        //virtual typename ASM::FitterResultPointerType InstantiateResult() = 0;
 
 
     private:
-        float FindBestMatchingPointForProfile(typename ASM::PointType &result, unsigned pointId, const statismo::MultiVariateNormalDistribution &profile) {
+        float FindBestMatchingPointForProfile(PointType &result, unsigned pointId, const statismo::MultiVariateNormalDistribution &profile) {
             float bestFeatureDistance = -1;
 
-            std::vector<typename ASM::PointType> samples = m_sampler->SampleAtPointId(pointId);
+            std::vector<PointType> samples = m_sampler->SampleAtPointId(pointId);
 
-            for (typename std::vector<typename ASM::PointType>::const_iterator sample = samples.begin(); sample != samples.end(); ++sample) {
+            for (typename std::vector<PointType>::const_iterator sample = samples.begin(); sample != samples.end(); ++sample) {
                 statismo::VectorType features = m_featureExtractor->ExtractFeatures(*sample);
                 float featureDistance = profile.MahalanobisDistance(features);
                 if (bestFeatureDistance == -1 || bestFeatureDistance > featureDistance) {

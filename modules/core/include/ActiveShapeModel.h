@@ -45,35 +45,48 @@
 
 namespace statismo {
 
-    template <typename ASM>
+    template <typename TPointSet, typename TImage>
     class ActiveShapeModel {
+
+    typedef Representer<TPointSet> RepresenterType;
+    typedef StatisticalModel<TPointSet> StatisticalModelType;
+    typedef typename RepresenterType::PointType PointType;
+         typedef ASMFeatureExtractorFactory<TPointSet, TImage> FeatureExtractorFactoryType;
+
+        typedef ASMFeatureExtractor<TPointSet, TImage> ASMFeatureExtractorType;
+
     protected:
-        ActiveShapeModel() {}
-        virtual typename ASM::StatisticalModelPointerType LoadStatisticalShapeModel(const typename ASM::MeshRepresenterPointerType representer, const H5::Group& group) = 0;
+        ActiveShapeModel(const StatisticalModelType* statisticalModel, const ASMFeatureExtractorType* fe, std::vector<ASMProfile>& profiles)
+        : m_statisticalModel(statisticalModel),
+        m_featureExtractor(fe),
+        m_profiles(profiles)
+        {}
+
+        //virtual StatisticalModelType* LoadStatisticalShapeModel(const RepresenterType* representer, const H5::Group& group) = 0;
     public:
 
         virtual ~ActiveShapeModel() {
             std::cout << "statismo::ASM destructor" << std:: endl;
         }
 
+
         std::vector<ASMProfile> GetProfiles() const {
             return m_profiles;
         }
 
-        typename ASM::StatisticalModelPointerType GetStatisticalModel() const {
+        const StatisticalModelType* GetStatisticalModel() const {
             return m_statisticalModel;
         }
 
-        typename ASM::FeatureExtractorPointerType GetFeatureExtractor() const {
+        const ASMFeatureExtractor<TPointSet, TImage>* GetFeatureExtractor() const {
             return m_featureExtractor;
         }
 
-        statismo::MultiVariateNormalDistribution GetMarginalAtPointId(unsigned pointId) {
+        statismo::MultiVariateNormalDistribution GetMarginalAtPointId(unsigned pointId) const {
+            PointType imean = m_statisticalModel->DrawMeanAtPoint(pointId);
+            MatrixType icovariances = m_statisticalModel->GetCovarianceAtPoint(pointId, pointId);
 
-            typename ASM::PointType imean = m_statisticalModel->DrawMeanAtPoint(pointId);
-            typename ASM::StatisticalModelType::MatrixType icovariances = m_statisticalModel->GetCovarianceAtPoint(pointId, pointId);
-
-            unsigned int dimensions = ASM::GetDimensions();
+            unsigned int dimensions = m_statisticalModel->GetRepresenter()->GetDimensions();
 
             statismo::VectorType mean(dimensions);
             statismo::MatrixType covariances(dimensions,dimensions);
@@ -88,7 +101,7 @@ namespace statismo {
         }
 
 
-        void Load(typename ASM::MeshRepresenterPointerType representer, const std::string& filename) {
+        static const ActiveShapeModel<TPointSet, TImage>* Load(RepresenterType* representer, const std::string& filename) {
             H5::H5File file;
 
             try {
@@ -100,7 +113,7 @@ namespace statismo {
 
             H5::Group rootGroup = file.openGroup("/");
 
-            m_statisticalModel = LoadStatisticalShapeModel(representer, rootGroup);
+            StatisticalModelType* statisticalModel = StatisticalModel<TPointSet>::Load(representer, rootGroup);
 
             H5::Group asmGroup = rootGroup.openGroup("activeShapeModel");
             H5::Group feGroup = asmGroup.openGroup("featureExtractor");
@@ -117,7 +130,8 @@ namespace statismo {
             statismo::HDF5Utils::readArray(profilesGroup, "pointIds", pointIds);
             statismo::HDF5Utils::readMatrix(profilesGroup, "means", means);
 
-            m_profiles.reserve(numPoints);
+            std::vector<ASMProfile> profiles;
+            profiles.reserve(numPoints);
 
             for (unsigned int i=0; i < numPoints; ++i) {
                 unsigned int covOffset = i * profileLength;
@@ -131,31 +145,31 @@ namespace statismo {
 
                 statismo::MultiVariateNormalDistribution mvd(mean, cov);
 
-                m_profiles.push_back(statismo::ASMProfile(pointIds[i], mvd));
+                profiles.push_back(statismo::ASMProfile(pointIds[i], mvd));
             }
 
             std::string feType = HDF5Utils::readStringAttribute(feGroup, "type");
-            typename ASM::FeatureExtractorFactoryPointerType feFactory = ASM::FeatureExtractorFactoryType::GetImplementation(feType);
+            const FeatureExtractorFactoryType* feFactory = FeatureExtractorFactoryType::GetImplementation(feType);
             if (!feFactory) {
                 std::string msg(std::string("No feature extractor implementation found for type: ") + feType);
                 throw StatisticalModelException(msg.c_str());
             }
-            m_featureExtractor = feFactory->Instantiate(feGroup);
+            const ASMFeatureExtractor<TPointSet, TImage>* featureExtractor = feFactory->Instantiate(feGroup);
 
-            //ActiveShapeModel* am = new ActiveShapeModel(statisticalModel, fe, profiles);
+            ActiveShapeModel* am = new ActiveShapeModel(statisticalModel, featureExtractor, profiles);
 
             feGroup.close();
             asmGroup.close();
             rootGroup.close();
             file.close();
 
-            //return am;
+            return am;
         }
 
     private:
         std::vector<ASMProfile> m_profiles;
-        typename ASM::StatisticalModelPointerType m_statisticalModel;
-        typename ASM::FeatureExtractorPointerType m_featureExtractor;
+       const StatisticalModelType *m_statisticalModel;
+        const ASMFeatureExtractor<TPointSet, TImage>* m_featureExtractor;
     };
 };
 

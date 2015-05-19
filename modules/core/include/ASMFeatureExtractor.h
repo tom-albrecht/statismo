@@ -39,42 +39,48 @@
 #define STATISMO_ASMFEATUREEXTRACTOR_H
 
 #include "CommonTypes.h"
+#include "Representer.h"
 
 namespace H5 {
     class Group;
 }
 
 namespace statismo {
-    template <typename ASM>
+    template <typename TPointSet, typename TImage>
     class ASMFeatureExtractor {
+    typedef ASMFeatureExtractor<TPointSet, TImage> FeatureExtractorType;
+    typedef typename Representer<TPointSet>::PointType PointType;
+
+
     public:
-        virtual typename ASM::FeatureExtractorPointerType SetImage(typename ASM::ImagePointerType) = 0;
-        virtual typename ASM::FeatureExtractorPointerType SetMesh(typename ASM::MeshPointerType) = 0;
-        virtual statismo::VectorType ExtractFeatures(const typename ASM::PointType& point) const = 0;
+        virtual const FeatureExtractorType* SetImage(const TImage* image) const = 0;
+        virtual const FeatureExtractorType* SetPointset(const TPointSet *dataset) const = 0;
+        virtual statismo::VectorType ExtractFeatures(const PointType& point) const = 0;
     };
 
-    template<typename ASM>
+    template<typename TPointSet, typename TImage>
     class ASMFeatureExtractorFactory {
+    typedef ASMFeatureExtractorFactory<TPointSet, TImage> ASMFeatureExtractorFactoryType;
     private:
-        static std::vector<typename ASM::FeatureExtractorFactoryPointerType> *implementations() {
-            static std::vector<typename ASM::FeatureExtractorFactoryPointerType> impls;
+        static std::vector<const ASMFeatureExtractorFactoryType*> *implementations() {
+            static std::vector<const ASMFeatureExtractorFactoryType*> impls;
             return &impls;
         }
-        ASMFeatureExtractorFactory(const ASMFeatureExtractorFactory& o) { }
-        ASMFeatureExtractorFactory& operator=(const ASMFeatureExtractorFactory& o) {}
+        ASMFeatureExtractorFactory(const ASMFeatureExtractorFactoryType& o) { }
+        ASMFeatureExtractorFactory& operator=(const ASMFeatureExtractorFactoryType& o) {}
 
     protected:
         ASMFeatureExtractorFactory() {}
 
     public:
         virtual std::string GetDescriptor() const = 0;
-        virtual typename ASM::FeatureExtractorPointerType Instantiate(const H5::Group& h5Group) const = 0;
+        virtual const ASMFeatureExtractor<TPointSet, TImage>* Instantiate(const H5::Group& h5Group) const = 0;
 
-        static std::vector<typename ASM::FeatureExtractorFactoryPointerType> GetImplementations() {
+        static std::vector<const ASMFeatureExtractorFactoryType*> GetImplementations() {
             return *implementations();
         }
 
-        static void RegisterImplementation(typename ASM::FeatureExtractorFactoryPointerType impl) {
+        static void RegisterImplementation(const ASMFeatureExtractorFactoryType* impl) {
             if (GetImplementation(impl->GetDescriptor())) {
                 //ignoring already-registered implementation
                 return;
@@ -82,9 +88,9 @@ namespace statismo {
             implementations()->push_back(impl);
         }
 
-        static typename ASM::FeatureExtractorFactoryPointerType GetImplementation(std::string descriptor) {
-            std::vector<typename ASM::FeatureExtractorFactoryPointerType> impls = GetImplementations();
-            for (typename std::vector<typename ASM::FeatureExtractorFactoryPointerType>::iterator impl = impls.begin(); impl != impls.end(); ++impl) {
+        static const ASMFeatureExtractorFactoryType* GetImplementation(std::string descriptor) {
+            std::vector<const ASMFeatureExtractorFactoryType* > impls = GetImplementations();
+            for (typename std::vector<const ASMFeatureExtractorFactoryType* >::iterator impl = impls.begin(); impl != impls.end(); ++impl) {
                 if ((*impl)->GetDescriptor() == descriptor) {
                     return *impl;
                 }

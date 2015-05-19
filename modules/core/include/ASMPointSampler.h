@@ -42,23 +42,25 @@
 #include <vector>
 
 namespace statismo {
-    template <typename ASM>
+    template <typename TPointSet>
     class ASMPointSampler {
+    typedef typename Representer<TPointSet>::PointType PointType;
+
     public:
-        void Init(typename ASM::MeshPointerType mesh) {
-            m_mesh = mesh;
-        }
+        ASMPointSampler(const TPointSet* mesh) :
+            m_mesh(mesh)
+        {}
 
-        virtual typename ASM::PointSamplerPointerType SetMesh(const typename ASM::MeshPointerType mesh) = 0;
-        virtual std::vector<typename ASM::PointType> SampleAtPoint(const typename ASM::PointType& targetPoint) = 0;
-        virtual std::vector<typename ASM::PointType> SampleAtPointId(const unsigned& targetPointId) = 0;
+        virtual const ASMPointSampler<TPointSet>* SetPointSet(const TPointSet* mesh) const = 0;
+        virtual std::vector< PointType> SampleAtPoint(const PointType& targetPoint) const = 0;
+        virtual std::vector<PointType> SampleAtPointId(const unsigned& targetPointId) const = 0;
 
-        typename ASM::MeshPointerType GetMesh() {
+        TPointSet* GetMesh() {
             return m_mesh;
         }
 
     private:
-        typename ASM::MeshPointerType m_mesh;
+        const TPointSet* m_mesh;
     };
 }
 #endif //STATISMO_ASMPOINTSAMPLER_H
