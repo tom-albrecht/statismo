@@ -15,9 +15,11 @@
 #include <itkImage.h>
 #include <itkImageFileReader.h>
 #include <itkStandardMeshRepresenter.h>
+#include <ASMFitter.h>
 #include "ASMFeatureExtractor.h"
 #include "itkASMNormalDirectionGradientGaussianFeatureExtractor.h"
 #include "itkActiveShapeModel.h"
+#include "itkASMNormalDirectionPointSampler.h"
 
 typedef itk::Mesh<float, 3> MeshType;
 typedef itk::Image<float, 3> ImageType;
@@ -35,7 +37,8 @@ int main(int argc, char *argv[]) {
     ActiveShapeModelType::Pointer aModel = ActiveShapeModelType::New();
     new ActiveShapeModelType;
 
-    std::string modelname("/home/langguth/workspaces.exported/stk.idea/bladderdemo/src/main/resources/bladder/asmModels/asmLevel-1.h5");
+    //std::string modelname("/home/langguth/workspaces.exported/stk.idea/bladderdemo/src/main/resources/bladder/asmModels/asmLevel-1.h5");
+    std::string modelname("/tmp/asmLevel-1.h5");
     RepresenterType::Pointer representer = RepresenterType::New();
     aModel->Load(representer, modelname.c_str());
 
@@ -44,29 +47,27 @@ int main(int argc, char *argv[]) {
     std::cout << "statismo::SSM impl object: " << aModel->GetStatisticalModel()->GetstatismoImplObj() << std::endl;
     StatisticalModelType::Pointer s = aModel->GetStatisticalModel();
 
-    ImageReaderType::Pointer reader = ImageReaderType::New();
-    reader->SetFileName("/home/langguth/workspaces.exported/stk.idea/bladderdemo/src/main/resources/bladder/volumes/24.vtk");
-    reader->Update();
-    ImageType::Pointer image = reader->GetOutput();
+    itk::ASMNormalDirectionPointSampler::Pointer fitSampler = itk::ASMNormalDirectionPointSampler::New();
+    fitSampler->SetNumberOfPoints(42);
+    fitSampler->SetPointSpacing((float)0.5);
 
-//
-//
-    MeshType::Pointer mesh = aModel->GetStatisticalModel()->DrawMean();
-//
-//    itk::ASMNormalDirectionPointSampler<ASM>::Pointer sampler = itk::ASMNormalDirectionPointSampler<ASM>::New();
-//    //sampler->Init(90, (float)(2.0/3.0));
-//    sampler->Init(25, (float)(0.5));
-//    //sampler->Init(125, (float)(0.5));
-//
-//    itk::ASMFitterConfiguration::Pointer fitConfig = itk::ASMFitterConfiguration::New();
-//    fitConfig->Set1()
-//    fitConfig->Set1()
-//    fitConfig->Set1()
+    statismo::ASMFitterConfiguration fitConfig(1,2,3);
 
-//    itk::Point
+//    ImageReaderType::Pointer reader = ImageReaderType::New();
+//    reader->SetFileName("/tmp/24.vtk");
+//    reader->Update();
+//    ImageType::Pointer image = reader->GetOutput();
+//    MeshType::Pointer mesh = aModel->GetStatisticalModel()->DrawMean();
+
+    typename itk::ASMFitter::Pointer fitter = itk::ASMFitter::New();
+    fitter->SetSourceModel(aModel); // "source"
+    fitter->SetTargetImage(image); // "target"
+    fitter->SetSamplingStrategy(fitSampler); // "how"
+    fitter->SetThresholds(fitConfig); // "success criteria"
+    fitter->SetMaxIterations(42); // "how often"
+
 //
 //    typename itk::ASMFitter<ASM>::Pointer fitter = itk::ASMFitter<ASM>::New();
-//    typename itk::ASMNormalDirectionPointSampler<ASM>::Pointer pointSampler = itk::ASMNormalDirectionPointSampler<ASM>::New();
 //    fitter->Init(fitConfig, aModel, mesh, image, pointSampler);
 //    for (int i=0; i < 25; ++i) {
 //        std::cout << "iteration " << i << " start" << std::endl;
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
 //        std::cout << "coeffs (adj)" << result->GetCoefficients() << std::endl;
 //        fitter = fitter->SetPointset(result->GetMesh());
 //    }
-    std::cout << "Program ends" << std::endl;
+    std::cout << std::endl << "#### Program ends here ####" << std::endl << std::endl;
     return 0;
 }
 //
