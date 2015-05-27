@@ -90,21 +90,23 @@ class StatisticalModel : public Object {
         }
     }
 
-    void SetstatismoImplObj(ImplType* impl) {
+    virtual void SetstatismoImplObj(ImplType* impl) {
         if (m_impl) {
             delete m_impl;
         }
         m_impl = impl;
     }
 
-    ImplType* GetstatismoImplObj() const {
+    virtual ImplType* GetstatismoImplObj() const {
         return m_impl;
     }
 
     StatisticalModel() : m_impl(0) {}
 
     virtual ~StatisticalModel() {
+        std::cout << "FIXME: itk::StatisticalModel destructor (has implementation pointer == " << (m_impl != 0) <<")" << std::endl;
         if (m_impl) {
+            std::cout << "FIXME: itk::StatisticalModel destructor deleting statismo::StatisticalModel" << std::endl;
             delete m_impl;
         }
     }
@@ -142,151 +144,151 @@ class StatisticalModel : public Object {
     //TODO: wrap StatisticalModel* BuildReducedVarianceModel( double pcvar );
 
     const RepresenterType* GetRepresenter() const {
-        return callstatismoImpl(boost::bind(&ImplType::GetRepresenter, this->m_impl));
+        return callstatismoImpl(boost::bind(&ImplType::GetRepresenter, this->GetstatismoImplObj()));
     }
 
     const DomainType& GetDomain() const {
-        return callstatismoImpl(boost::bind(&ImplType::GetDomain, this->m_impl));
+        return callstatismoImpl(boost::bind(&ImplType::GetDomain, this->GetstatismoImplObj()));
     }
 
     DatasetPointerType DrawMean() const {
-        return callstatismoImpl(boost::bind(&ImplType::DrawMean, this->m_impl));
+        return callstatismoImpl(boost::bind(&ImplType::DrawMean, this->GetstatismoImplObj()));
     }
 
     ValueType DrawMeanAtPoint(const PointType& pt) const {
         typedef ValueType (ImplType::*functype)(const PointType&) const;
-        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawMeanAtPoint), this->m_impl, pt));
+        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawMeanAtPoint), this->GetstatismoImplObj(), pt));
     }
 
     ValueType DrawMeanAtPoint(unsigned ptid) const {
         typedef ValueType (ImplType::*functype)(unsigned) const;
-        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawMeanAtPoint), this->m_impl, ptid));
+        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawMeanAtPoint), this->GetstatismoImplObj(), ptid));
     }
 
     DatasetPointerType DrawSample(const VectorType& coeffs, bool addNoise = false) const {
         typedef DatasetPointerType (ImplType::*functype)(const statismo::VectorType&, bool) const;
-        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSample), this->m_impl, fromVnlVector(coeffs), addNoise));
+        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSample), this->GetstatismoImplObj(), fromVnlVector(coeffs), addNoise));
     }
 
     DatasetPointerType DrawSample(bool addNoise = false) const {
         typedef DatasetPointerType (ImplType::*functype)(bool) const;
-        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSample), this->m_impl, addNoise));
+        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSample), this->GetstatismoImplObj(), addNoise));
     }
 
     DatasetPointerType DrawPCABasisSample(unsigned componentNumber) const {
         typedef DatasetPointerType (ImplType::*functype)(unsigned) const;
-        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawPCABasisSample), this->m_impl, componentNumber));
+        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawPCABasisSample), this->GetstatismoImplObj(), componentNumber));
     }
 
     ValueType DrawSampleAtPoint(const VectorType& coeffs, const PointType& pt, bool addNoise = false) const {
         typedef ValueType (ImplType::*functype)(const statismo::VectorType&, const PointType&, bool) const;
-        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSampleAtPoint), this->m_impl, fromVnlVector(coeffs), pt, addNoise));
+        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSampleAtPoint), this->GetstatismoImplObj(), fromVnlVector(coeffs), pt, addNoise));
     }
 
     ValueType DrawSampleAtPoint(const VectorType& coeffs, unsigned ptid, bool addNoise  = false) const  {
         typedef ValueType (ImplType::*functype)(const statismo::VectorType&, unsigned, bool) const;
-        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSampleAtPoint), this->m_impl, fromVnlVector(coeffs), ptid, addNoise));
+        return callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::DrawSampleAtPoint), this->GetstatismoImplObj(), fromVnlVector(coeffs), ptid, addNoise));
     }
 
 
     VectorType ComputeCoefficientsForDataset(DatasetConstPointerType ds) const {
-        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::ComputeCoefficientsForDataset, this->m_impl, ds)));
+        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::ComputeCoefficientsForDataset, this->GetstatismoImplObj(), ds)));
     }
 
     VectorType ComputeCoefficientsForSample(DatasetConstPointerType ds) const {
-        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::ComputeCoefficientsForSample, this->m_impl, ds)));
+        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::ComputeCoefficientsForSample, this->GetstatismoImplObj(), ds)));
     }
 
     VectorType ComputeCoefficientsForDataSample(const DataItemType* sample) const {
-        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::ComputeCoefficientsForDataSample, this->m_impl, sample)));
+        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::ComputeCoefficientsForDataSample, this->GetstatismoImplObj(), sample)));
     }
 
     double ComputeLogProbabilityOfDataset(DatasetConstPointerType ds) const {
-        return callstatismoImpl(boost::bind(&ImplType::ComputeLogProbabilityOfDataset, this->m_impl, ds));
+        return callstatismoImpl(boost::bind(&ImplType::ComputeLogProbabilityOfDataset, this->GetstatismoImplObj(), ds));
     }
 
     double ComputeProbabilityOfDataset(DatasetConstPointerType ds) const {
-        return callstatismoImpl(boost::bind(&ImplType::ComputeProbabilityOfDataset, this->m_impl, ds));
+        return callstatismoImpl(boost::bind(&ImplType::ComputeProbabilityOfDataset, this->GetstatismoImplObj(), ds));
     }
 
     double ComputeLogProbabilityOfCoefficients(const VectorType& coeffs) const {
-        return callstatismoImpl(boost::bind(&ImplType::ComputeLogProbabilityOfCoefficients, this->m_impl, fromVnlVector(coeffs)));
+        return callstatismoImpl(boost::bind(&ImplType::ComputeLogProbabilityOfCoefficients, this->GetstatismoImplObj(), fromVnlVector(coeffs)));
     }
 
     double ComputeProbabilityOfCoefficients(const VectorType& coeffs) const {
-        return callstatismoImpl(boost::bind(&ImplType::ComputeProbabilityOfCoefficients, this->m_impl, fromVnlVector(coeffs)));
+        return callstatismoImpl(boost::bind(&ImplType::ComputeProbabilityOfCoefficients, this->GetstatismoImplObj(), fromVnlVector(coeffs)));
     }
 
     double ComputeMahalanobisDistanceForDataset(DatasetConstPointerType ds) const {
-        return callstatismoImpl(boost::bind(&ImplType::ComputeMahalanobisDistanceForDataset, this->m_impl, ds));
+        return callstatismoImpl(boost::bind(&ImplType::ComputeMahalanobisDistanceForDataset, this->GetstatismoImplObj(), ds));
     }
 
     VectorType ComputeCoefficientsForPointValues(const PointValueListType& pvlist, double variance) const {
         typedef statismo::VectorType (ImplType::*functype)(const PointValueListType&, double) const;
-        return toVnlVector(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::ComputeCoefficientsForPointValues), this->m_impl, pvlist, variance)));
+        return toVnlVector(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::ComputeCoefficientsForPointValues), this->GetstatismoImplObj(), pvlist, variance)));
     }
 
 
     DatasetPointerType DatasetToSample(DatasetConstPointerType ds) const {
-        return callstatismoImpl(boost::bind(&ImplType::DatasetToSample, this->m_impl, ds));
+        return callstatismoImpl(boost::bind(&ImplType::DatasetToSample, this->GetstatismoImplObj(), ds));
     }
 
     unsigned GetNumberOfPrincipalComponents() const {
-        return callstatismoImpl(boost::bind(&ImplType::GetNumberOfPrincipalComponents, this->m_impl));
+        return callstatismoImpl(boost::bind(&ImplType::GetNumberOfPrincipalComponents, this->GetstatismoImplObj()));
     }
 
     void Save(const char* modelname) {
         typedef void (ImplType::*functype)(const std::string&) const;
-        callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::Save), this->m_impl, modelname));
+        callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::Save), this->GetstatismoImplObj(), modelname));
     }
 
     void Save(const H5::Group& modelRoot) {
         typedef void (ImplType::*functype)(const H5::Group&) const;
-        callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::Save), this->m_impl, modelRoot));
+        callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::Save), this->GetstatismoImplObj(), modelRoot));
     }
 
     float GetNoiseVariance() const {
-        return callstatismoImpl(boost::bind(&ImplType::GetNoiseVariance, this->m_impl));
+        return callstatismoImpl(boost::bind(&ImplType::GetNoiseVariance, this->GetstatismoImplObj()));
     }
     
     MatrixType GetCovarianceAtPoint(const PointType& pt1, const PointType& pt2) const {
         typedef statismo::MatrixType (ImplType::*functype)(const PointType&, const PointType&) const;
-        return  toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetCovarianceAtPoint), this->m_impl, pt1, pt2)));
+        return  toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetCovarianceAtPoint), this->GetstatismoImplObj(), pt1, pt2)));
     }
 
     MatrixType GetCovarianceAtPoint(unsigned ptid1, unsigned  ptid2) const {
         typedef statismo::MatrixType (ImplType::*functype)(unsigned, unsigned ) const;
-        return toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetCovarianceAtPoint),this->m_impl, ptid1, ptid2)));
+        return toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetCovarianceAtPoint),this->GetstatismoImplObj(), ptid1, ptid2)));
     }
 
     MatrixType GetJacobian(const PointType& pt) const {
         typedef statismo::MatrixType (ImplType::*functype)(const PointType&) const;
-        return toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetJacobian), this->m_impl, pt)));
+        return toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetJacobian), this->GetstatismoImplObj(), pt)));
     }
 
     MatrixType GetJacobian(unsigned ptId) const {
         typedef statismo::MatrixType (ImplType::*functype)(unsigned) const;
-        return toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetJacobian), this->m_impl, ptId)));
+        return toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetJacobian), this->GetstatismoImplObj(), ptId)));
     }
 
     MatrixType GetPCABasisMatrix() const {
-        return toVnlMatrix(callstatismoImpl(boost::bind(&ImplType::GetPCABasisMatrix, this->m_impl)));
+        return toVnlMatrix(callstatismoImpl(boost::bind(&ImplType::GetPCABasisMatrix, this->GetstatismoImplObj())));
     }
 
     MatrixType GetOrthonormalPCABasisMatrix() const {
-        return toVnlMatrix(callstatismoImpl(boost::bind(&ImplType::GetOrthonormalPCABasisMatrix, this->m_impl)));
+        return toVnlMatrix(callstatismoImpl(boost::bind(&ImplType::GetOrthonormalPCABasisMatrix, this->GetstatismoImplObj())));
     }
 
     VectorType GetPCAVarianceVector() const {
-        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::GetPCAVarianceVector, this->m_impl)));
+        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::GetPCAVarianceVector, this->GetstatismoImplObj())));
     }
 
     VectorType GetMeanVector() const {
-        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::GetMeanVector, this->m_impl)));
+        return toVnlVector(callstatismoImpl(boost::bind(&ImplType::GetMeanVector, this->GetstatismoImplObj())));
     }
 
     const statismo::ModelInfo& GetModelInfo() const {
-        return callstatismoImpl(boost::bind(&ImplType::GetModelInfo, this->m_impl));
+        return callstatismoImpl(boost::bind(&ImplType::GetModelInfo, this->GetstatismoImplObj()));
     }
 
   private:

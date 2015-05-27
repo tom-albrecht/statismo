@@ -35,8 +35,31 @@
 // *
 // */
 //
-//#ifndef STATISMO_itkAsmNormalDirectionGradientGaussianFeatureExtractor_H
-//#define STATISMO_itkAsmNormalDirectionGradientGaussianFeatureExtractor_H
+#ifndef STATISMO_itkAsmNormalDirectionGradientGaussianFeatureExtractor_H
+#define STATISMO_itkAsmNormalDirectionGradientGaussianFeatureExtractor_H
+
+#include "ASMFeatureExtractor.h"
+
+namespace itk {
+    template <typename TPointSet, typename TImage>
+    class ASMNormalDirectionFeatureExtractorFactory : public statismo::ASMFeatureExtractorFactory<TPointSet, TImage> {
+    public:
+
+        static const ASMNormalDirectionFeatureExtractorFactory* GetInstance() {
+            static ASMNormalDirectionFeatureExtractorFactory* instance = new ASMNormalDirectionFeatureExtractorFactory();
+            return instance;
+        }
+
+        virtual std::string GetDescriptor() const {
+            return "builtin::NormalDirection";
+        }
+
+        virtual const statismo::ASMFeatureExtractor<TPointSet, TImage>* Instantiate(
+                const H5::Group &h5Group) const {
+            return 0;
+        }
+    };
+}
 //
 //#include "itkASMFeatureExtractor.h"
 //#include "HDF5Utils.h"
@@ -211,4 +234,4 @@
 //}
 //
 //
-//#endif //STATISMO_itkAsmNormalDirectionGradientGaussianFeatureExtractor_H
+#endif //STATISMO_itkAsmNormalDirectionGradientGaussianFeatureExtractor_H

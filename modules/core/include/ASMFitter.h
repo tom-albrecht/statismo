@@ -46,28 +46,28 @@ namespace statismo {
 
     class ASMFitterConfiguration {
     private:
-        float m_maxFeatureDistance;
-        float m_maxShapeDistance;
-        float m_maxCoefficientDistance;
+        float m_featureDistanceThreshold;
+        float m_pointDistanceThreshold;
+        float m_modelCoefficientBounds;
 
     public:
-        ASMFitterConfiguration(float maxFeatureDistance, float maxShapeDistance, float maxCoefficientDistance) :
-                m_maxFeatureDistance(maxFeatureDistance),
-                m_maxShapeDistance(maxShapeDistance),
-                m_maxCoefficientDistance(maxCoefficientDistance)
+        ASMFitterConfiguration(float featureDistanceThreshold, float pointDistanceThreshold, float modelCoefficientBounds) :
+                m_featureDistanceThreshold(featureDistanceThreshold),
+                m_pointDistanceThreshold(pointDistanceThreshold),
+                m_modelCoefficientBounds(modelCoefficientBounds)
         {}
 
 
-        float GetMaxFeatureDistance() const {
-            return m_maxFeatureDistance;
+        float GetFeatureDistanceThreshold() const {
+            return m_featureDistanceThreshold;
         }
 
-        float GetMaxShapeDistance() const {
-            return m_maxShapeDistance;
+        float GetPointDistanceThreshold() const {
+            return m_pointDistanceThreshold;
         }
 
-        float GetMaxCoefficientDistance() const {
-            return m_maxCoefficientDistance;
+        float GetModelCoefficientBounds() const {
+            return m_modelCoefficientBounds;
         }
     };
 
@@ -143,7 +143,7 @@ namespace statismo {
                 //std::cout << "evaluating @ pointId " << pointId << std::endl;
                 PointType transformedPoint;
                 float featureDistance = FindBestMatchingPointForProfile(transformedPoint, pointId, (*profile).GetDistribution());
-                if (m_configuration.GetMaxFeatureDistance() == 0 || featureDistance <= m_configuration.GetMaxFeatureDistance()) {
+                if (featureDistance <= m_configuration.GetFeatureDistanceThreshold()) {
                     statismo::VectorType point(dimensions);
                     for (int i = 0; i < dimensions; ++i) {
                         point[i] = transformedPoint[i];
@@ -151,7 +151,7 @@ namespace statismo {
                     statismo::MultiVariateNormalDistribution marginal = m_model->GetMarginalAtPointId(pointId);
                     float pointDistance = marginal.MahalanobisDistance(point);
 
-                    if (m_configuration.GetMaxShapeDistance() == 0 || pointDistance <= m_configuration.GetMaxShapeDistance()) {
+                    if (pointDistance <= m_configuration.GetPointDistanceThreshold()) {
                         PointType refPoint = domainPoints[pointId];
                         constraints.push_back(std::make_pair(refPoint, transformedPoint));
                     } else {
@@ -168,11 +168,9 @@ namespace statismo {
 
                 VectorType coeffs = m_model->GetStatisticalModel()->ComputeCoefficientsForPointValues(constraints, 1e-6);
 
-                float maxCoeff = m_configuration.GetMaxCoefficientDistance();
-                if (maxCoeff > 0) {
-                    for (size_t i = 0; i < coeffs.size(); ++i) {
-                        coeffs(i) = std::min(maxCoeff, std::max(-maxCoeff, coeffs(i)));
-                    }
+                float maxCoeff = m_configuration.GetModelCoefficientBounds();
+                for (size_t i = 0; i < coeffs.size(); ++i) {
+                    coeffs(i) = std::min(maxCoeff, std::max(-maxCoeff, coeffs(i)));
                 }
                 return ASMFitterResult<TPointSet, TImage>(true, coeffs, m_model->GetStatisticalModel()->DrawSample(coeffs));
 
