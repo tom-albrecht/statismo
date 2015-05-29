@@ -17,9 +17,10 @@
 #include <itkStandardMeshRepresenter.h>
 #include <ASMFitter.h>
 #include "ASMFeatureExtractor.h"
-#include "itkASMNormalDirectionGradientGaussianFeatureExtractor.h"
+#include "itkASMNormalDirectionFeatureExtractor.h"
 #include "itkActiveShapeModel.h"
 #include "itkASMNormalDirectionPointSampler.h"
+#include "itkASMFitter.h"
 
 typedef itk::Mesh<float, 3> MeshType;
 typedef itk::Image<float, 3> ImageType;
@@ -38,33 +39,38 @@ int main(int argc, char *argv[]) {
     new ActiveShapeModelType;
 
     //std::string modelname("/home/langguth/workspaces.exported/stk.idea/bladderdemo/src/main/resources/bladder/asmModels/asmLevel-1.h5");
-    std::string modelname("/tmp/asmLevel-1.h5");
+    std::string modelname("/tmp/newasm/asmLevel-1.h5");
     RepresenterType::Pointer representer = RepresenterType::New();
     aModel->Load(representer, modelname.c_str());
 
-    std::cout << "statismo::SSM impl object: " << aModel->GetStatisticalModel()->GetstatismoImplObj() << std::endl;
-    std::cout << "statismo::SSM impl object: " << aModel->GetStatisticalModel()->GetstatismoImplObj() << std::endl;
-    std::cout << "statismo::SSM impl object: " << aModel->GetStatisticalModel()->GetstatismoImplObj() << std::endl;
-    StatisticalModelType::Pointer s = aModel->GetStatisticalModel();
+    StatisticalModelType::Pointer ssm = aModel->GetStatisticalModel();
 
-    itk::ASMNormalDirectionPointSampler::Pointer fitSampler = itk::ASMNormalDirectionPointSampler::New();
-    fitSampler->SetNumberOfPoints(42);
-    fitSampler->SetPointSpacing((float)0.5);
+    itk::ASMNormalDirectionPointSampler<MeshType>::Pointer fitSampler = itk::ASMNormalDirectionPointSampler<MeshType>::New();
+    fitSampler->SetNumberOfPoints(3);
+    fitSampler->SetPointSpacing(1);
 
-    statismo::ASMFitterConfiguration fitConfig(1,2,3);
+    statismo::ASMFitterConfiguration fitConfig(30,30,40);
 
-//    ImageReaderType::Pointer reader = ImageReaderType::New();
-//    reader->SetFileName("/tmp/24.vtk");
-//    reader->Update();
-//    ImageType::Pointer image = reader->GetOutput();
-//    MeshType::Pointer mesh = aModel->GetStatisticalModel()->DrawMean();
+    ImageReaderType::Pointer reader = ImageReaderType::New();
+    reader->SetFileName("/tmp/24.vtk");
+    reader->Update();
+    ImageType::Pointer image = reader->GetOutput();
 
-    typename itk::ASMFitter::Pointer fitter = itk::ASMFitter::New();
-    fitter->SetSourceModel(aModel); // "source"
-    fitter->SetTargetImage(image); // "target"
-    fitter->SetSamplingStrategy(fitSampler); // "how"
-    fitter->SetThresholds(fitConfig); // "success criteria"
-    fitter->SetMaxIterations(42); // "how often"
+    //FIXME: yuck
+    MeshType::Pointer mean = ssm->DrawMean();
+    StatisticalModelType::VectorType mmean = ssm->ComputeCoefficientsForDataset(mean);
+    statismo::VectorType smean = Eigen::Map<const statismo::VectorType>(mmean.data_block(), mmean.size());
+
+    typedef itk::ASMFitterStep<MeshType, ImageType> FitterStepType;
+    typedef typename FitterStepType::Pointer FitterStepPointerType;
+    FitterStepPointerType fitter = FitterStepType::New();
+    fitter->SetModel(aModel); // "source"
+    fitter->SetSource(smean); // "source"
+    fitter->SetTarget(image); // "target"
+    fitter->SetSampler(FitterStepType::SamplerPointerType(fitSampler.GetPointer())); // "how"
+    fitter->SetConfiguration(fitConfig); // "success criteria"
+    fitter->Update();
+    statismo::ASMFitterResult result = fitter->GetOutput();
 
 //
 //    typename itk::ASMFitter<ASM>::Pointer fitter = itk::ASMFitter<ASM>::New();

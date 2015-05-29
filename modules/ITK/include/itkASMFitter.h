@@ -37,60 +37,73 @@
 
 #ifndef STATISMO_ITKASMFITTER_H
 #define STATISMO_ITKASMFITTER_H
-//
-//#include "ASMFitter.h"
-//
-//namespace itk {
-//
-//    class ASMFitterConfiguration : public Object, public statismo::ASMFitterConfiguration {
-//    public:
-//
-//        typedef ASMFitterConfiguration Self;
-//        typedef Object Superclass;
-//        typedef SmartPointer<Self> Pointer;
-//        typedef SmartPointer<const Self> ConstPointer;
-//
-//        itkNewMacro(Self);
-//        itkTypeMacro(ASMFitterConfiguration, Object);
-//    };
-//
-//    template<typename ASM>
-//    class ASMFitterResult : public Object, public statismo::ASMFitterResult<ASM> {
-//    public:
-//
-//        typedef ASMFitterResult Self;
-//        typedef Object Superclass;
-//        typedef SmartPointer<Self> Pointer;
-//        typedef SmartPointer<const Self> ConstPointer;
-//
-//        itkNewMacro(Self);
-//        itkTypeMacro(ASMFitterResult, Object);
-//    };
-//
-//    template<typename ASM>
-//    class ASMFitter : public Object, public statismo::ASMFitter<ASM> {
-//    public:
-//
-//        typedef ASMFitter Self;
-//        typedef Object Superclass;
-//        typedef SmartPointer <Self> Pointer;
-//        typedef SmartPointer<const Self> ConstPointer;
-//
-//        itkNewMacro( Self );
-//        itkTypeMacro( ASMFitter, Object);
-//
-//        virtual typename ASM::FitterPointerType SetMesh(typename ASM::MeshPointerType mesh) {
-//            ASMFitter::Pointer copy = ASMFitter::New();
-//            copy->Init(this->m_configuration, this->m_model, mesh, this->m_targetImage, this->m_sampler->SetMesh(mesh), this->m_featureExtractor->SetMesh(mesh));
-//            return copy;
-//        }
-//
-//    protected:
-//        virtual typename ASM::FitterResultPointerType InstantiateResult() {
-//            return ASM::FitterResultType::New();
-//        }
-//    };
-//}
+
+#include <itkObject.h>
+#include <itkMacro.h>
+#include "ASMFitter.h"
+#include "itkActiveShapeModel.h"
+#include "itkASMPointSampler.h"
+namespace itk {
+    template<typename TPointSet, typename TImage>
+    class ASMFitterStep : public Object {
+    public:
+        typedef ASMFitterStep Self;
+        typedef Object Superclass;
+        typedef SmartPointer <Self> Pointer;
+        typedef SmartPointer<const Self> ConstPointer;
+        itkNewMacro( Self );
+        itkTypeMacro( Self, Object);
+
+        typedef typename ActiveShapeModel<TPointSet, TImage>::Pointer ModelPointerType;
+        typedef typename TPointSet::Pointer PointSetPointerType;
+        typedef typename TImage::Pointer ImagePointerType;
+        typedef statismo::ASMFitterConfiguration ConfigurationType;
+        typedef typename ASMPointSampler<TPointSet>::Pointer SamplerPointerType;
+        typedef statismo::ASMFitterResult ResultType;
+        typedef statismo::ASMFitterStep<TPointSet, TImage> ImplType;
+
+        ASMFitterStep(): m_model(0), m_target(0), m_configuration(0,0,0) {}
+
+        void SetModel(ModelPointerType model) {
+            m_model = model;
+        }
+
+        void SetSource(statismo::VectorType source) {
+            m_source = source;
+        }
+
+        void SetTarget(ImagePointerType target) {
+            m_target = target;
+        }
+
+        void SetSampler(SamplerPointerType sampler) {
+            m_sampler = sampler;
+        }
+
+        void SetConfiguration(const ConfigurationType& configuration) {
+            m_configuration = configuration;
+        }
+
+        void Update() {
+            ImplType* impl = ImplType::Create(m_configuration, m_model->GetstatismoImplObj(), m_source, m_target, m_sampler);
+            m_result = impl->Perform();
+            delete impl;
+        }
+
+        ResultType GetOutput() {
+            return m_result;
+        }
+
+    private:
+        ModelPointerType m_model;
+        statismo::VectorType m_source;
+        ImagePointerType m_target;
+        SamplerPointerType m_sampler;
+        ConfigurationType m_configuration;
+        ResultType m_result;
+        //statismo::VectorType m_coefficients; // FIXME: WTF?
+    };
+}
 //
 //
 #endif //STATISMO_ITKASMFITTER_H

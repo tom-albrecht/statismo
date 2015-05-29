@@ -47,20 +47,11 @@ namespace statismo {
     typedef typename Representer<TPointSet>::PointType PointType;
 
     public:
-        ASMPointSampler(const TPointSet* mesh) :
-            m_mesh(mesh)
-        {}
-
-        virtual const ASMPointSampler<TPointSet>* SetPointSet(const TPointSet* mesh) const = 0;
-        virtual std::vector< PointType> SampleAtPoint(const PointType& targetPoint) const = 0;
-        virtual std::vector<PointType> SampleAtPointId(const unsigned& targetPointId) const = 0;
-
-        TPointSet* GetMesh() {
-            return m_mesh;
-        }
+        ASMPointSampler() {}
+        virtual std::vector< PointType> Sample(const TPointSet* const pointSet, const PointType& targetPoint) const = 0;
+        //virtual std::vector< PointType> Sample(const PointType& targetPoint, asm, coefficient) const = 0;
 
     private:
-        const TPointSet* m_mesh;
     };
 }
 #endif //STATISMO_ASMPOINTSAMPLER_H

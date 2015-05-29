@@ -53,9 +53,17 @@ namespace statismo {
 
 
     public:
-        virtual const FeatureExtractorType* SetImage(const TImage* image) const = 0;
-        virtual const FeatureExtractorType* SetPointset(const TPointSet *dataset) const = 0;
-        virtual statismo::VectorType ExtractFeatures(const PointType& point) const = 0;
+        virtual ~ASMFeatureExtractor(){}
+//        virtual const FeatureExtractorType* SetImage(const TImage* image) const = 0;
+//        virtual const FeatureExtractorType* SetPointset(const TPointSet *dataset) const = 0;
+        virtual statismo::VectorType ExtractFeatures(const TImage* const image, const TPointSet* const dataset, const PointType& point) const = 0;
+    };
+
+    template<typename TPoint, typename TImage>
+    class PreprocessedImage {
+    public:
+        virtual bool IsDefinedAt(const TPoint& point);
+        virtual statismo::VectorType Evaluate(const TPoint& point);
     };
 
     template<typename TPointSet, typename TImage>
