@@ -89,9 +89,7 @@ namespace itk {
         ActiveShapeModel() : m_impl(0) {}
 
         virtual ~ActiveShapeModel() {
-            std::cout << "FIXME: itk::ASM destructor" << std:: endl;
             if (m_impl) {
-                std::cout << "FIXME: itk::ASM destructor deleting statismo::ASM" << std:: endl;
                 delete m_impl;
             }
         }
@@ -137,7 +135,6 @@ namespace itk {
         ASMContainedStatisticalModel() {}
 
         virtual ~ASMContainedStatisticalModel() {
-            std::cout << "FIXME: itk::ASMContainedSSM destructor" << std::endl;
         }
 
         virtual void SetstatismoImplObj(ImplType *impl) {

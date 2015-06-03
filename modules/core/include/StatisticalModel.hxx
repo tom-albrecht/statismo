@@ -72,9 +72,7 @@ StatisticalModel<T>::StatisticalModel(const RepresenterType* representer)
 template <typename T>
 StatisticalModel<T>::~StatisticalModel() {
 
-    std::cout << "FIXME: statismo::StatisticalModel destructor" << std::endl;
     if (m_representer != 0) {
-        std::cout << "FIXME: statismo::StatisticalModel destructor deleting representer" << std::endl;
 //		 not all representers can implement a const correct version of delete.
 //		 We therefore simply const cast it. This is save here.
         const_cast<RepresenterType*>(m_representer)->Delete();

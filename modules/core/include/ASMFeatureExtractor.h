@@ -40,30 +40,34 @@
 
 #include "CommonTypes.h"
 #include "Representer.h"
+#include "ASMImagePreprocessor.h"
+//#include "ActiveShapeModel.h"
 
 namespace H5 {
     class Group;
 }
 
 namespace statismo {
+    //forward declaration
+    template <typename TPointSet, typename TImage> class ActiveShapeModel;
+
     template <typename TPointSet, typename TImage>
     class ASMFeatureExtractor {
     typedef ASMFeatureExtractor<TPointSet, TImage> FeatureExtractorType;
     typedef typename Representer<TPointSet>::PointType PointType;
+    typedef ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+    typedef ASMPreprocessedImage<TPointSet> PreprocessedImageType;
 
 
     public:
         virtual ~ASMFeatureExtractor(){}
 //        virtual const FeatureExtractorType* SetImage(const TImage* image) const = 0;
 //        virtual const FeatureExtractorType* SetPointset(const TPointSet *dataset) const = 0;
-        virtual statismo::VectorType ExtractFeatures(const TImage* const image, const TPointSet* const dataset, const PointType& point) const = 0;
-    };
-
-    template<typename TPoint, typename TImage>
-    class PreprocessedImage {
-    public:
-        virtual bool IsDefinedAt(const TPoint& point);
-        virtual statismo::VectorType Evaluate(const TPoint& point);
+        //FIXME
+        virtual void Delete() = 0;
+        virtual FeatureExtractorType* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients) const = 0;
+//        virtual statismo::VectorType ExtractFeatures(const TImage* const image, const TPointSet* const dataset, const PointType& point) const = 0;
+        virtual bool ExtractFeatures(statismo::VectorType& output, const PreprocessedImageType* const image, const PointType& point) const = 0;
     };
 
     template<typename TPointSet, typename TImage>

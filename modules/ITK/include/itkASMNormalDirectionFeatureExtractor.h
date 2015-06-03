@@ -48,43 +48,66 @@
 namespace itk {
     template<typename TPointSet, typename TImage>
     class ASMNormalDirectionFeatureExtractor : public statismo::ASMFeatureExtractor<TPointSet, TImage> {
+    private:
+        typedef statismo::ASMPreprocessedImage<TPointSet> PreprocessedImageType;
+        typedef statismo::ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+        typedef statismo::VectorType VectorType;
+        typedef CovariantVector<float, TImage::ImageDimension> CovariantVectorType;
+        typedef vnl_vector<statismo::ScalarType> VnlVectorType;
+        typedef typename ASMNormalDirectionPointSampler<TPointSet, TImage>::Pointer SamplerPointerType;
 
-        typedef DiscreteGaussianImageFilter<TImage, TImage> GaussianFilterType;
-        typedef BSplineInterpolateImageFunction<TImage, typename TImage::PixelType, typename TImage::PixelType> InterpolatedImageType;
-        typedef typename InterpolatedImageType::Pointer InterpolatedImagePointerType;
-        typedef typename InterpolatedImageType::CovariantVectorType InterpolatedGradientType;
+        const SamplerPointerType m_sampler;
+        const float m_sigma;
+
+        static statismo::VectorType fromVnlVector(const VnlVectorType& v) {
+            return Eigen::Map<const statismo::VectorType>(v.data_block(), v.size());
+        }
 
     public:
         typedef typename statismo::Representer<TPointSet>::PointType PointType;
-        typedef typename ASMNormalDirectionPointSampler<TPointSet>::Pointer SamplerPointerType;
 
         ASMNormalDirectionFeatureExtractor(SamplerPointerType sampler, float sigma): m_sampler(sampler), m_sigma(sigma) {
-            std::cout << "FIXME: itk::ASMFE constructor" <<std::endl;
         }
 
         virtual ~ASMNormalDirectionFeatureExtractor() {
-            std::cout << "FIXME: itk::ASMFE destructor" <<std::endl;
         }
-        virtual statismo::VectorType ExtractFeatures(const TImage* const image, const TPointSet* const dataset, const PointType& point) const {
+
+        virtual void Delete() {
+            m_sampler->Delete();
+            delete this;
+        }
+
+        virtual ASMNormalDirectionFeatureExtractor* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients) const {
+            SamplerPointerType copySampler = m_sampler->CloneForTarget(model, coefficients);
+            return new ASMNormalDirectionFeatureExtractor(copySampler, m_sigma);
+        }
+
+
+        virtual bool ExtractFeatures(statismo::VectorType& output, const PreprocessedImageType* const image, const PointType& point) const {
+
             statismo::VectorType features(m_sampler->GetNumberOfPoints());
 
             int i = 0;
             float sum = 0;
 
-            InterpolatedImagePointerType interpolated = Interpolate(image);
-            InterpolatedGradientType normal;
+            CovariantVectorType normal;
+            normal.CastFrom(m_sampler->GetNormalForPoint(point));
 
-            normal.CastFrom(m_sampler->GetNormalForPoint(dataset, point));
-            std::vector<PointType> samples = m_sampler->Sample(dataset, point);
-
+            std::vector<PointType> samples = m_sampler->Sample(point);
             for (typename std::vector<PointType>::iterator it = samples.begin(); it != samples.end(); ++it) {
                 PointType sample = *it;
 
                 typename TImage::IndexType index;
-                if (image->TransformPhysicalPointToIndex(sample, index)) {
-                    features[i] = (float)(interpolated->EvaluateDerivative(sample) * normal);
+                if (image->IsDefined(sample)) {
+                    //features[i] = (float)(interpolated->EvaluateDerivative(sample) * normal);
+                    VectorType gradient = image->Evaluate(sample);
+                    VectorType snormal = fromVnlVector(normal.GetVnlVector());
+                    float directionGradient = gradient.dot(snormal);
+                    features[i] = directionGradient;
                 } else {
-                    features[i] = 999;
+                    // fail fast
+                    //std::cout << "point " << point << " is out of bounds, returning empty feature vector" << std::endl;
+                    return false;
                 }
                 // keep track of sum of absolute values
                 if (features[i] < 0) {
@@ -100,38 +123,15 @@ namespace itk {
                     features[i] /= sum;
                 }
             }
-            std::cout << "features for " <<point << " : " <<features <<std::endl;
-            return features;
-        }
-
-    private:
-        const SamplerPointerType m_sampler;
-        const float m_sigma;
-
-
-        InterpolatedImagePointerType Interpolate(const TImage* const image) const {
-            InterpolatedImagePointerType inter = InterpolatedImageType::New();
-            inter->SetSplineOrder(1);
-            if (m_sigma != 0) {
-                typename GaussianFilterType::Pointer smooth = GaussianFilterType::New();
-                smooth->SetVariance(m_sigma * m_sigma);
-                // FIXME: smooth->SetMaximumKernelWidth ???
-                smooth->SetInput(image);
-                smooth->Update();
-                inter->SetInputImage(smooth->GetOutput());
-            } else {
-                inter->SetInputImage(image);
-            }
-
-            std::cout << "FIXME: blurring and interpolation done" << std::endl;
-            return inter;
+            output = features;
+            return true;
         }
     };
 
     template<typename TPointSet, typename TImage>
     class ASMNormalDirectionFeatureExtractorFactory : public statismo::ASMFeatureExtractorFactory<TPointSet, TImage> {
 
-        typedef ASMNormalDirectionPointSampler<TPointSet> SamplerType;
+        typedef ASMNormalDirectionPointSampler<TPointSet, TImage> SamplerType;
         typedef typename SamplerType::Pointer SamplerPointerType;
         typedef ASMNormalDirectionFeatureExtractor<TPointSet, TImage> InstanceType;
 

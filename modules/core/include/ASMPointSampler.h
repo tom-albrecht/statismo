@@ -40,15 +40,23 @@
 #define STATISMO_ASMPOINTSAMPLER_H
 
 #include <vector>
+#include "ActiveShapeModel.h"
 
 namespace statismo {
-    template <typename TPointSet>
+    template <typename TPointSet, typename TImage>
     class ASMPointSampler {
-    typedef typename Representer<TPointSet>::PointType PointType;
+        typedef typename Representer<TPointSet>::PointType PointType;
+        typedef ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+        typedef statismo::VectorType VectorType;
+        typedef ASMPointSampler<TPointSet, TImage> SelfType;
 
     public:
         ASMPointSampler() {}
-        virtual std::vector< PointType> Sample(const TPointSet* const pointSet, const PointType& targetPoint) const = 0;
+        virtual SelfType* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients) const = 0;
+        virtual std::vector<PointType> Sample(const PointType& targetPoint) const = 0;
+        virtual void Delete() = 0;
+        //virtual std::vector< PointType> Sample(const TPointSet* const pointSet, const PointType& targetPoint) const = 0;
+        //virtual std::vector< PointType> Sample(const ActiveShapeModelType* const model, const VectorType& coefficients, const PointType& targetPoint) const = 0;
         //virtual std::vector< PointType> Sample(const PointType& targetPoint, asm, coefficient) const = 0;
 
     private:

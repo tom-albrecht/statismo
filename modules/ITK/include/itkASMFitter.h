@@ -56,9 +56,9 @@ namespace itk {
 
         typedef typename ActiveShapeModel<TPointSet, TImage>::Pointer ModelPointerType;
         typedef typename TPointSet::Pointer PointSetPointerType;
-        typedef typename TImage::Pointer ImagePointerType;
+        typedef typename statismo::ASMPreprocessedImage<TPointSet>* ImagePointerType;
         typedef statismo::ASMFitterConfiguration ConfigurationType;
-        typedef typename ASMPointSampler<TPointSet>::Pointer SamplerPointerType;
+        typedef typename ASMPointSampler<TPointSet, TImage>::Pointer SamplerPointerType;
         typedef statismo::ASMFitterResult ResultType;
         typedef statismo::ASMFitterStep<TPointSet, TImage> ImplType;
 
@@ -68,8 +68,8 @@ namespace itk {
             m_model = model;
         }
 
-        void SetSource(statismo::VectorType source) {
-            m_source = source;
+        void SetCoefficients(statismo::VectorType coeffs) {
+            m_coeffs = coeffs;
         }
 
         void SetTarget(ImagePointerType target) {
@@ -85,7 +85,7 @@ namespace itk {
         }
 
         void Update() {
-            ImplType* impl = ImplType::Create(m_configuration, m_model->GetstatismoImplObj(), m_source, m_target, m_sampler);
+            ImplType* impl = ImplType::Create(m_configuration, m_model->GetstatismoImplObj(), m_coeffs, m_target, m_sampler);
             m_result = impl->Perform();
             delete impl;
         }
@@ -96,12 +96,11 @@ namespace itk {
 
     private:
         ModelPointerType m_model;
-        statismo::VectorType m_source;
+        statismo::VectorType m_coeffs;
         ImagePointerType m_target;
         SamplerPointerType m_sampler;
         ConfigurationType m_configuration;
         ResultType m_result;
-        //statismo::VectorType m_coefficients; // FIXME: WTF?
     };
 }
 //

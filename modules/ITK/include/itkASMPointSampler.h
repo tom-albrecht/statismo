@@ -44,19 +44,20 @@
 
 namespace itk {
 
-    template <typename TPointSet>
-    class ASMPointSampler : public Object, public statismo::ASMPointSampler<TPointSet> {
+    template <typename TPointSet, typename TImage>
+    class ASMPointSampler : public Object, public statismo::ASMPointSampler<TPointSet, TImage> {
     public:
         typedef ASMPointSampler Self;
         typedef Object Superclass;
         typedef SmartPointer <Self> Pointer;
         typedef SmartPointer<const Self> ConstPointer;
-        //itkNewMacro(Self);
-        itkTypeMacro(Self, Object);
 
         typedef typename statismo::Representer<TPointSet>::PointType PointType;
 
-        virtual std::vector< PointType> Sample(const TPointSet* const pointSet, const PointType& targetPoint) const = 0;
+        virtual void Delete() {
+            Object::Delete();
+        }
+
     };
 }
 #endif //STATISMO_ITKASMPOINTSAMPLER_H

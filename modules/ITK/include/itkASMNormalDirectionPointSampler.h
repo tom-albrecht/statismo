@@ -46,29 +46,62 @@
 #include "itkCovariantVector.h"
 
 namespace itk {
-    template <typename TPointSet>
-    class ASMNormalDirectionPointSampler: public ASMPointSampler<TPointSet> {
-
-        typedef itk::PointsLocator<typename TPointSet::PointsContainer> PointsLocatorType;
+    template<typename TPointSet, typename TImage>
+    class ASMNormalDirectionPointSampler : public ASMPointSampler<TPointSet, TImage> {
+    private:
+        typedef TPointSet MeshType;
+        typedef typename MeshType::Pointer MeshPointerType;
+        typedef PointsLocator<typename MeshType::PointsContainer> PointsLocatorType;
         typedef typename PointsLocatorType::Pointer PointsLocatorPointerType;
         typedef typename PointsLocatorType::PointsContainer PointsContainerType;
-        typedef itk::Vector<typename TPointSet::PixelType> VectorType;
-        typedef itk::TriangleMeshAdapter<typename TPointSet::PixelType> MeshAdapterType;
+        typedef Vector<typename MeshType::PixelType> VectorType;
+        typedef TriangleMeshAdapter<typename MeshType::PixelType> MeshAdapterType;
         typedef typename MeshAdapterType::Pointer MeshAdapterPointerType;
         typedef typename MeshAdapterType::PointNormalType PointNormalType;
         typedef typename MeshAdapterType::PointNormalsContainerPointer PointNormalsContainerPointer;
 
+        unsigned int m_numberOfPoints;
+        float m_pointSpacing;
+        const MeshPointerType m_mesh;
+        const PointsLocatorPointerType m_locator;
+        const PointNormalsContainerPointer m_normals;
+
     public:
+
         /* standard ITK typedefs and macros */
         typedef ASMNormalDirectionPointSampler Self;
-        typedef ASMPointSampler<TPointSet> Superclass;
-        typedef SmartPointer <Self> Pointer;
+        typedef ASMPointSampler<TPointSet, TImage> Superclass;
+        typedef SmartPointer<Self> Pointer;
         typedef SmartPointer<const Self> ConstPointer;
-        itkNewMacro( Self );
-        itkTypeMacro( Self, Object);
+
+        itkNewMacro(Self);
+
+        itkTypeMacro(ASMNormalDirectionPointSampler, Object);
 
 
+        typedef statismo::ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
         typedef typename statismo::Representer<TPointSet>::PointType PointType;
+        typedef ASMNormalDirectionPointSampler<TPointSet, TImage> SelfType;
+
+        // FIXME: default constructor, initializes everything with 0/null
+        ASMNormalDirectionPointSampler():
+                m_mesh(0),
+                m_locator(0),
+        m_normals(0),
+        m_numberOfPoints(0),
+        m_pointSpacing(0)
+        {
+        }
+
+        // FIXME: This should be either protected or private, and requires *all* fields
+        ASMNormalDirectionPointSampler(MeshPointerType mesh, PointsLocatorPointerType locator, PointNormalsContainerPointer normals, unsigned int numberOfPoints, float pointSpacing):
+                m_mesh (mesh),
+                m_locator(locator),
+                m_normals(normals),
+                m_numberOfPoints(numberOfPoints),
+                m_pointSpacing(pointSpacing) {
+
+        }
 
         unsigned int GetNumberOfPoints() const {
             return m_numberOfPoints;
@@ -86,56 +119,61 @@ namespace itk {
             m_pointSpacing = pointSpacing;
         }
 
-        virtual std::vector<PointType> Sample(const TPointSet* const pointSet, const PointType& samplePoint) const {
+        virtual SelfType *CloneForTarget(const ActiveShapeModelType *const model,
+                                         const statismo::VectorType &coefficients) const {
+
+            MeshPointerType mesh = model->GetStatisticalModel()->DrawSample(coefficients, false);
+
+            PointsLocatorPointerType locator = PointsLocatorType::New();
+            locator->SetPoints(const_cast<PointsContainerType *>(mesh->GetPoints()));
+            locator->Initialize();
+
+            MeshAdapterPointerType adapter = MeshAdapterType::New();
+            //adapter->SetMesh(const_cast<TPointSet *>(mesh.GetPointer()));
+            adapter->SetMesh(mesh);
+            PointNormalsContainerPointer normals = adapter->GetPointNormals();
+
+            Pointer copy = new ASMNormalDirectionPointSampler(mesh, locator, normals, m_numberOfPoints, m_pointSpacing);
+            //Pointer copy = ASMNormalDirectionPointSampler::Clone(); // this does NOT work: at runtime, it's resolved to the superclass....
+            return copy.GetPointer();
+        }
+
+        virtual std::vector<PointType> Sample(const PointType &targetPoint) const {
             //FIXME: this only works for TriangleMeshes for now.
 
             //std::cout << "SAMPLING AT " << samplePoint << std::endl;
             std::vector<PointType> samples;
             samples.reserve(m_numberOfPoints);
 
-            unsigned int normalPointId = FindClosestPointId(pointSet, samplePoint);
+            unsigned int normalPointId = m_locator->FindClosestPoint(targetPoint);
 
-            PointNormalType normal = GetNormalForPointId(pointSet, normalPointId);
             // Convert to an itk::(ContraVariant)Vector, because no operators are overloaded for adding the
             // covariant vector normal to a point.
-            VectorType normalVector(normal.GetDataPointer());
+            VectorType normalVector(GetNormalForPointId(normalPointId).GetDataPointer());
 
             int startInclusive = -(m_numberOfPoints / 2);
             int endExclusive = (m_numberOfPoints + 1) / 2;
 
-            for(int i = startInclusive; i < endExclusive; ++i) {
-                PointType sample = samplePoint + normalVector * i * m_pointSpacing;
-                //std::cout << "sample(" << i <<") = " << sample << std::endl;
+            for (int i = startInclusive; i < endExclusive; ++i) {
+                PointType sample = targetPoint + normalVector * i * m_pointSpacing;
                 samples.push_back(sample);
             }
 
             return samples;
         }
 
-        const unsigned int FindClosestPointId(const TPointSet* const pointSet, const PointType &targetPoint) const {
-            PointsLocatorPointerType locator = PointsLocatorType::New();
-            locator->SetPoints(const_cast<PointsContainerType*>(pointSet->GetPoints()));
-            locator->Initialize();
-            return locator->FindClosestPoint(targetPoint);
-        }
 
-        PointNormalType GetNormalForPointId(const TPointSet* const pointSet, const unsigned &targetPointId) const {
-            MeshAdapterPointerType adapter = MeshAdapterType::New();
-            adapter->SetMesh(const_cast<TPointSet*>(pointSet));
-            PointNormalsContainerPointer normals = adapter->GetPointNormals();
-
-            PointNormalType normal = normals->GetElement(targetPointId);
+        PointNormalType GetNormalForPointId(const unsigned &targetPointId) const {
+            PointNormalType normal = m_normals->GetElement(targetPointId);
             return normal * (1.0 / normal.GetNorm());
         }
 
-        PointNormalType GetNormalForPoint(const TPointSet* const pointSet, const PointType &targetPoint) const {
-            return GetNormalForPointId(pointSet, FindClosestPointId(pointSet, targetPoint));
+        PointNormalType GetNormalForPoint(const PointType &targetPoint) const {
+            return GetNormalForPointId(m_locator->FindClosestPoint(targetPoint));
         }
 
 
-            private:
-        unsigned int m_numberOfPoints;
-        float m_pointSpacing;
+    private:
 
     };
 

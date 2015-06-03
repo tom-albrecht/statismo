@@ -42,6 +42,7 @@
 #include "StatisticalModel.h"
 #include "ASMProfile.h"
 #include "ASMFeatureExtractor.h"
+#include "ASMImagePreprocessor.h"
 
 namespace statismo {
 
@@ -53,19 +54,22 @@ namespace statismo {
         typedef StatisticalModel<TPointSet> StatisticalModelType;
         typedef typename RepresenterType::PointType PointType;
         typedef ASMFeatureExtractorFactory<TPointSet, TImage> FeatureExtractorFactoryType;
-        typedef ASMFeatureExtractor<TPointSet, TImage> ASMFeatureExtractorType;
+        typedef ASMFeatureExtractor<TPointSet, TImage> FeatureExtractorType;
+        typedef ASMImagePreprocessor<TPointSet, TImage> ImagePreprocessorType;
+        typedef ASMImagePreprocessorFactory<TPointSet, TImage> ImagePreprocessorFactoryType;
 
         virtual ~ActiveShapeModel() {
-            std::cout << "FIXME: statismo::ASM destructor" << std::endl;
             if (m_statisticalModel) {
-                std::cout << "FIXME: statismo::ASM destructor deleting statismo::SSM" << std::endl;
                 delete m_statisticalModel;
                 m_statisticalModel = 0;
             }
             if (m_featureExtractor) {
-                std::cout << "FIXME: statismo::ASM destructor deleting feature extractor" << std::endl;
                 delete m_featureExtractor;
                 m_featureExtractor = 0;
+            }
+            if (m_preprocessor) {
+                delete m_preprocessor;
+                m_preprocessor = 0;
             }
         }
 
@@ -78,8 +82,12 @@ namespace statismo {
             return m_statisticalModel;
         }
 
-        const ASMFeatureExtractor<TPointSet, TImage> *GetFeatureExtractor() const {
+        const FeatureExtractorType *GetFeatureExtractor() const {
             return m_featureExtractor;
+        }
+
+        const ImagePreprocessorType *GetImagePreprocessor() const {
+            return m_preprocessor;
         }
 
         statismo::MultiVariateNormalDistribution GetMarginalAtPointId(unsigned pointId) const {
@@ -118,6 +126,7 @@ namespace statismo {
 
             H5::Group asmGroup = rootGroup.openGroup("activeShapeModel");
             H5::Group feGroup = asmGroup.openGroup("featureExtractor");
+            H5::Group ppGroup = asmGroup.openGroup("imagePreprocessor");
             H5::Group profilesGroup = asmGroup.openGroup("profiles");
 
             std::vector<int> pointIds;
@@ -151,15 +160,23 @@ namespace statismo {
                 profiles.push_back(statismo::ASMProfile(pointIds[i], mvd));
             }
 
+            std::string ppId = HDF5Utils::readStringAttribute(ppGroup, "identifier");
+            const ImagePreprocessorFactoryType *ppFactory = ImagePreprocessorFactoryType::GetImplementation(ppId);
+            if (!ppFactory) {
+                std::string msg(std::string("No image preprocessor implementation found for identifier: ") + ppId);
+                throw StatisticalModelException(msg.c_str());
+            }
+            const ImagePreprocessorType *preprocessor = ppFactory->Instantiate(ppGroup);
+
             std::string feId = HDF5Utils::readStringAttribute(feGroup, "identifier");
             const FeatureExtractorFactoryType *feFactory = FeatureExtractorFactoryType::GetImplementation(feId);
             if (!feFactory) {
                 std::string msg(std::string("No feature extractor implementation found for identifier: ") + feId);
                 throw StatisticalModelException(msg.c_str());
             }
-            const ASMFeatureExtractor<TPointSet, TImage> *featureExtractor = feFactory->Instantiate(feGroup);
+            const FeatureExtractorType *featureExtractor = feFactory->Instantiate(feGroup);
 
-            ActiveShapeModel *am = new ActiveShapeModel(statisticalModel, featureExtractor, profiles);
+            ActiveShapeModel *am = new ActiveShapeModel(statisticalModel, preprocessor, featureExtractor, profiles);
 
             feGroup.close();
             asmGroup.close();
@@ -170,16 +187,18 @@ namespace statismo {
         }
 
     protected:
-        ActiveShapeModel(const StatisticalModelType *statisticalModel, const ASMFeatureExtractorType *fe,
+        ActiveShapeModel(const StatisticalModelType *statisticalModel, const ImagePreprocessorType* preprocessor, const FeatureExtractorType *fe,
                          std::vector<ASMProfile> &profiles)
                 : m_statisticalModel(statisticalModel),
+                  m_preprocessor(preprocessor),
                   m_featureExtractor(fe),
                   m_profiles(profiles) { }
 
     private:
         std::vector<ASMProfile> m_profiles;
         const StatisticalModelType *m_statisticalModel;
-        const ASMFeatureExtractor<TPointSet, TImage> *m_featureExtractor;
+        const ImagePreprocessorType *m_preprocessor;
+        const FeatureExtractorType *m_featureExtractor;
     };
 };
 

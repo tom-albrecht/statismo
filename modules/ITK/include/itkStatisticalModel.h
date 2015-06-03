@@ -104,9 +104,7 @@ class StatisticalModel : public Object {
     StatisticalModel() : m_impl(0) {}
 
     virtual ~StatisticalModel() {
-        std::cout << "FIXME: itk::StatisticalModel destructor (has implementation pointer == " << (m_impl != 0) <<")" << std::endl;
         if (m_impl) {
-            std::cout << "FIXME: itk::StatisticalModel destructor deleting statismo::StatisticalModel" << std::endl;
             delete m_impl;
         }
     }
