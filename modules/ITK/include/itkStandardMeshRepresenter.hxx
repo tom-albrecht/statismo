@@ -48,6 +48,9 @@
 #include <itkPoint.h>
 #include <itkTransformMeshFilter.h>
 #include <itkVector.h>
+#include <itkLandmarkBasedTransformInitializer.h>
+#include <itkVersorRigid3DTransform.h>
+
 
 #include <boost/filesystem.hpp>
 
@@ -416,6 +419,76 @@ template <class TPixel, unsigned MeshDimension>
 unsigned
 StandardMeshRepresenter<TPixel, MeshDimension>::FindClosestPoint(const MeshType* mesh, const PointType pt) const {
     throw statismo::StatisticalModelException("Not implemented. Currently only points of the reference can be used.");
+}
+
+
+template <class TPixel, unsigned MeshDimension>
+typename StandardMeshRepresenter<TPixel, MeshDimension>::PointType
+StandardMeshRepresenter<TPixel, MeshDimension>::TransformPoint(PointType &point, const typename RepresenterBaseType::RigidTransformPointerType transform, bool inverse) const {
+    if (transform) {
+        if (inverse) {
+            return transform->GetInverseTransform()->TransformPoint(point);
+        } else {
+            return transform->TransformPoint(point);
+        }
+    } else {
+        return point;
+    }
+};
+
+template <class TPixel, unsigned MeshDimension>
+typename StandardMeshRepresenter<TPixel, MeshDimension>::MeshType::Pointer
+StandardMeshRepresenter<TPixel, MeshDimension>::TransformMesh(typename MeshType::Pointer mesh, const typename RepresenterBaseType::RigidTransformPointerType transform) const {
+    if (transform) {
+        typedef itk::TransformMeshFilter<MeshType, MeshType, typename RepresenterBaseType::RigidTransformType> TransformMeshFilterType;
+
+        typename TransformMeshFilterType::Pointer tf = TransformMeshFilterType::New();
+        tf->SetInput(mesh);
+        tf->SetTransform(transform);
+        tf->Update();
+
+        typename MeshType::Pointer output = tf->GetOutput();
+        output->DisconnectPipeline();
+        return output;
+    } else {
+        return mesh;
+    }
+};
+
+template <class TPixel, unsigned MeshDimension>
+typename StandardMeshRepresenter<TPixel, MeshDimension>::RepresenterBaseType::RigidTransformPointerType
+StandardMeshRepresenter<TPixel, MeshDimension>::ComputeRigidTransformFromLandmarks(const std::vector<PointType> &fixedLandmarks, const std::vector<PointType> &movingLandmarks) const {
+    // initialize the rigid transform
+    typedef itk::Image<float, MeshDimension> DistanceImageType;
+    typedef itk::VersorRigid3DTransform<float> RigidTransformType;
+    typedef itk::LandmarkBasedTransformInitializer<RigidTransformType, DistanceImageType, DistanceImageType> LandmarkTransformInitializerType;
+    typedef itk::Point<double, MeshDimension> LandmarkPointType;
+
+    //FIXME: YUCK. There must be a better way around this.
+    std::vector<LandmarkPointType> fixedDoubleLandmarks;
+    std::vector<LandmarkPointType> movingDoubleLandmarks;
+
+    for (typename std::vector<PointType>::const_iterator lm = fixedLandmarks.begin(); lm != fixedLandmarks.end(); ++lm) {
+        LandmarkPointType lmd;
+        for (int i=0; i < (*lm).Dimension; ++i) { lmd[i] = (*lm)[i];}
+        fixedDoubleLandmarks.push_back(lmd);
+    }
+
+    for (typename std::vector<PointType>::const_iterator lm = movingLandmarks.begin(); lm != movingLandmarks.end(); ++lm) {
+        LandmarkPointType lmd;
+        for (int i=0; i < (*lm).Dimension; ++i) { lmd[i] = (*lm)[i];}
+        movingDoubleLandmarks.push_back(lmd);
+    }
+
+
+    RigidTransformType::Pointer rigidTransform = RigidTransformType::New();
+    typename LandmarkTransformInitializerType::Pointer initializer = LandmarkTransformInitializerType::New();
+    initializer->SetFixedLandmarks(fixedDoubleLandmarks);
+    initializer->SetMovingLandmarks(movingDoubleLandmarks);
+    initializer->SetTransform(rigidTransform);
+    initializer->InitializeTransform();
+
+    return typename RepresenterBaseType::RigidTransformType::Pointer(rigidTransform.GetPointer());
 }
 
 } // namespace itk

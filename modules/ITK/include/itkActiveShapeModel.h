@@ -46,9 +46,8 @@
 
 namespace itk {
 
-    //forward declaration
+    //forward declarations
     template <typename TPointSet, typename TImage> class ASMContainedStatisticalModel;
-
     template <typename TPointSet, typename TImage>
     class ActiveShapeModel: public Object {
     public:
@@ -62,9 +61,9 @@ namespace itk {
 
         typedef statismo::ActiveShapeModel<TPointSet, TImage> ImplType;
         typedef StatisticalModel<TPointSet> StatisticalModelType;
+        typedef typename StatisticalModelType::PointType PointType;
         typedef typename StatisticalModelType::Pointer StatisticalModelPointerType;
         typedef typename StatisticalModelType::ImplType StatisticalModelImplType;
-
 
         template <class F>
         typename boost::result_of<F()>::type callstatismoImpl(F f) const {
@@ -79,6 +78,7 @@ namespace itk {
             if (m_impl) {
                 delete m_impl;
             }
+            std::cout << "ASM Impl object set to " << impl << std::endl;
             m_impl = impl;
         }
 
@@ -112,6 +112,16 @@ namespace itk {
                 itkExceptionMacro(<< s.what());
             }
         }
+
+//        Pointer Transform(RigidTransformPointerType rigidTransform) const {
+//            BasicRigidTransformationType* basicTransform = new BasicRigidTransformationType(rigidTransform);
+//
+//            Pointer n = ActiveShapeModel::New();
+//            n->SetstatismoImplObj(m_impl->Transform(basicTransform));
+//
+//            delete basicTransform;
+//            return n;
+//        }
     private:
         ImplType* m_impl;
     };
@@ -152,7 +162,6 @@ namespace itk {
     private:
         ASMPointerType m_parent;
     };
-
 }
 
 #endif //STATISMO_ITKACTIVESHAPEMODEL_H

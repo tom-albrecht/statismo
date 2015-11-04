@@ -47,17 +47,15 @@ namespace statismo {
     class ASMPointSampler {
         typedef typename Representer<TPointSet>::PointType PointType;
         typedef ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+        typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
         typedef statismo::VectorType VectorType;
         typedef ASMPointSampler<TPointSet, TImage> SelfType;
 
     public:
         ASMPointSampler() {}
-        virtual SelfType* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients) const = 0;
+        virtual SelfType* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients, const RigidTransformPointerType transform) const = 0;
         virtual std::vector<PointType> Sample(const PointType& targetPoint) const = 0;
         virtual void Delete() = 0;
-        //virtual std::vector< PointType> Sample(const TPointSet* const pointSet, const PointType& targetPoint) const = 0;
-        //virtual std::vector< PointType> Sample(const ActiveShapeModelType* const model, const VectorType& coefficients, const PointType& targetPoint) const = 0;
-        //virtual std::vector< PointType> Sample(const PointType& targetPoint, asm, coefficient) const = 0;
 
     private:
     };

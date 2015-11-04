@@ -74,6 +74,10 @@ namespace itk {
 
         ASMGaussianGradientImagePreprocessor(float sigma): m_sigma(sigma) {}
 
+        virtual ASMGaussianGradientImagePreprocessor<TPointSet, TImage>* Clone() const {
+            return new ASMGaussianGradientImagePreprocessor(m_sigma);
+        };
+
         virtual PreprocessedImplType* Preprocess(const TImage* image) const {
             return PreprocessedImplType::Create(image, Interpolate(image));
         };

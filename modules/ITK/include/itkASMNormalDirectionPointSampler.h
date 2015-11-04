@@ -80,6 +80,7 @@ namespace itk {
 
 
         typedef statismo::ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+        typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
         typedef typename statismo::Representer<TPointSet>::PointType PointType;
         typedef ASMNormalDirectionPointSampler<TPointSet, TImage> SelfType;
 
@@ -120,16 +121,18 @@ namespace itk {
         }
 
         virtual SelfType *CloneForTarget(const ActiveShapeModelType *const model,
-                                         const statismo::VectorType &coefficients) const {
+                                         const statismo::VectorType &coefficients, const RigidTransformPointerType transform) const {
 
             MeshPointerType mesh = model->GetStatisticalModel()->DrawSample(coefficients, false);
+            if (transform) {
+                mesh = model->GetRepresenter()->TransformMesh(mesh, transform);
+            }
 
             PointsLocatorPointerType locator = PointsLocatorType::New();
             locator->SetPoints(const_cast<PointsContainerType *>(mesh->GetPoints()));
             locator->Initialize();
 
             MeshAdapterPointerType adapter = MeshAdapterType::New();
-            //adapter->SetMesh(const_cast<TPointSet *>(mesh.GetPointer()));
             adapter->SetMesh(mesh);
             PointNormalsContainerPointer normals = adapter->GetPointNormals();
 

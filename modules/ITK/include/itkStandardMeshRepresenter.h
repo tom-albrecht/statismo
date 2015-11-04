@@ -49,9 +49,16 @@
 
 #include "CommonTypes.h"
 #include "Exceptions.h"
-#include "Representer.h"
-
+#include "MeshRepresenter.h"
+#include <itkRigid3DTransform.h>
 #include "itkPixelConversionTraits.h"
+
+//namespace itk {
+//    class RigidTransformation: public statismo::RigidTransformation {
+//
+//    };
+//}
+
 
 namespace statismo {
 template <>
@@ -64,6 +71,9 @@ struct RepresenterTraits<itk::Mesh<float, 3u> > {
 
     typedef MeshType::PointType PointType;
     typedef MeshType::PointType ValueType;
+
+    typedef itk::Rigid3DTransform<float> RigidTransformType;
+    typedef typename RigidTransformType::Pointer RigidTransformPointerType;
 };
 
 }
@@ -87,7 +97,7 @@ size_t hash_value(const PointType& pt) {
  * \sa Representer
  */
 template <class TPixel, unsigned MeshDimension>
-class StandardMeshRepresenter : public statismo::Representer<itk::Mesh<TPixel, MeshDimension> >, public Object {
+class StandardMeshRepresenter : public statismo::MeshRepresenter<itk::Mesh<TPixel, MeshDimension> >, public Object {
   public:
 
     /* Standard class typedefs. */
@@ -98,7 +108,7 @@ class StandardMeshRepresenter : public statismo::Representer<itk::Mesh<TPixel, M
 
 
     typedef itk::Mesh<TPixel, MeshDimension> MeshType;
-    typedef typename statismo::Representer<MeshType > RepresenterBaseType;
+    typedef typename statismo::MeshRepresenter<MeshType > RepresenterBaseType;
     typedef typename RepresenterBaseType::DomainType DomainType;
     typedef typename RepresenterBaseType::PointType PointType;
     typedef typename RepresenterBaseType::ValueType ValueType;
@@ -132,6 +142,7 @@ class StandardMeshRepresenter : public statismo::Representer<itk::Mesh<TPixel, M
     unsigned GetDimensions() const {
         return MeshDimension;
     }
+
     std::string GetName() const {
         return "itkStandardMeshRepresenter";
     }
@@ -206,6 +217,10 @@ class StandardMeshRepresenter : public statismo::Representer<itk::Mesh<TPixel, M
 
     void DeleteDataset(DatasetPointerType d) const { };
     DatasetPointerType CloneDataset(DatasetConstPointerType mesh) const;
+
+    virtual PointType TransformPoint(PointType &point, const typename RepresenterBaseType::RigidTransformPointerType transform, bool inverse) const;
+    virtual typename MeshType::Pointer TransformMesh(typename MeshType::Pointer mesh, const typename RepresenterBaseType::RigidTransformPointerType transform) const;
+    virtual typename RepresenterBaseType::RigidTransformPointerType ComputeRigidTransformFromLandmarks(const std::vector<PointType> &fixedLandmarks, const std::vector<PointType> &movingLandmarks) const;
 
   private:
 

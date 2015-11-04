@@ -56,17 +56,16 @@ namespace statismo {
     typedef ASMFeatureExtractor<TPointSet, TImage> FeatureExtractorType;
     typedef typename Representer<TPointSet>::PointType PointType;
     typedef ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+    typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
     typedef ASMPreprocessedImage<TPointSet> PreprocessedImageType;
 
 
     public:
         virtual ~ASMFeatureExtractor(){}
-//        virtual const FeatureExtractorType* SetImage(const TImage* image) const = 0;
-//        virtual const FeatureExtractorType* SetPointset(const TPointSet *dataset) const = 0;
         //FIXME
         virtual void Delete() = 0;
-        virtual FeatureExtractorType* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients) const = 0;
-//        virtual statismo::VectorType ExtractFeatures(const TImage* const image, const TPointSet* const dataset, const PointType& point) const = 0;
+        virtual FeatureExtractorType* Clone() const = 0;
+        virtual FeatureExtractorType* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients, const RigidTransformPointerType transform) const = 0;
         virtual bool ExtractFeatures(statismo::VectorType& output, const PreprocessedImageType* const image, const PointType& point) const = 0;
     };
 

@@ -43,6 +43,7 @@
 
 #include <itkObject.h>
 #include <itkObjectFactory.h>
+#include <itkVersorRigid3DTransform.h>
 
 #include <vnl/vnl_matrix.h>
 #include <vnl/vnl_vector.h>
@@ -54,7 +55,7 @@
 
 namespace itk {
 
-/**
+    /**
  * \brief ITK Wrapper for the statismo::StatisticalModel class.
  * \see statismo::StatisticalModel for detailed documentation.
  */
@@ -79,7 +80,6 @@ class StatisticalModel : public Object {
 
     typedef vnl_matrix<statismo::ScalarType> MatrixType;
     typedef vnl_vector<statismo::ScalarType> VectorType;
-
 
     template <class F>
     typename boost::result_of<F()>::type callstatismoImpl(F f) const {
@@ -121,7 +121,6 @@ class StatisticalModel : public Object {
 
     typedef typename statismo::StatisticalModel<T>::DomainType DomainType;
 
-
     void Load(RepresenterType* representer, const char* filename) {
         try {
             SetstatismoImplObj(ImplType::Load(representer, filename));
@@ -139,7 +138,16 @@ class StatisticalModel : public Object {
         }
     }
 
-    //TODO: wrap StatisticalModel* BuildReducedVarianceModel( double pcvar );
+//    Pointer Transform(RigidTransformPointerType rigidTransform) const {
+//        Pointer p = Self::New();
+//        BasicRigidTransformationType* basicTransform = new BasicRigidTransformationType(rigidTransform);
+//        p->SetstatismoImplObj(m_impl->Transform(basicTransform));
+//        delete basicTransform;
+//        return p;
+//    }
+
+
+        //TODO: wrap StatisticalModel* BuildReducedVarianceModel( double pcvar );
 
     const RepresenterType* GetRepresenter() const {
         return callstatismoImpl(boost::bind(&ImplType::GetRepresenter, this->GetstatismoImplObj()));
@@ -311,7 +319,6 @@ class StatisticalModel : public Object {
 
     ImplType* m_impl;
 };
-
 
 }
 

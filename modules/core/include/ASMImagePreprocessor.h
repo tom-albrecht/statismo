@@ -18,6 +18,7 @@ namespace statismo {
     class ASMImagePreprocessor {
     public:
         virtual ~ASMImagePreprocessor() {}
+        virtual ASMImagePreprocessor<TPointSet, TImage>* Clone() const = 0;
         virtual ASMPreprocessedImage<TPointSet>* Preprocess(const TImage* image) const = 0;
     };
 

@@ -3,7 +3,7 @@
 #include "ASMFeatureExtractor.h"
 #include "ASMPointSampler.h"
 #include "ActiveShapeModel.h"
-#include "ASMFitter.h"
+#include "ASMFitting.h"
 
 #include "vtkStandardMeshRepresenter.h"
 

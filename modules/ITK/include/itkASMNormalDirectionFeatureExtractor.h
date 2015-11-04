@@ -51,9 +51,11 @@ namespace itk {
     private:
         typedef statismo::ASMPreprocessedImage<TPointSet> PreprocessedImageType;
         typedef statismo::ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
+        typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
         typedef statismo::VectorType VectorType;
         typedef CovariantVector<float, TImage::ImageDimension> CovariantVectorType;
         typedef vnl_vector<statismo::ScalarType> VnlVectorType;
+        typedef ASMNormalDirectionPointSampler<TPointSet, TImage> SamplerType;
         typedef typename ASMNormalDirectionPointSampler<TPointSet, TImage>::Pointer SamplerPointerType;
 
         const SamplerPointerType m_sampler;
@@ -77,8 +79,15 @@ namespace itk {
             delete this;
         }
 
-        virtual ASMNormalDirectionFeatureExtractor* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients) const {
-            SamplerPointerType copySampler = m_sampler->CloneForTarget(model, coefficients);
+        virtual ASMNormalDirectionFeatureExtractor* Clone() const {
+            SamplerPointerType sampler = SamplerType::New();
+            sampler->SetNumberOfPoints(m_sampler->GetNumberOfPoints());
+            sampler->SetPointSpacing(m_sampler->GetPointSpacing());
+            return new ASMNormalDirectionFeatureExtractor(sampler, m_sigma);
+        }
+
+        virtual ASMNormalDirectionFeatureExtractor* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients, const RigidTransformPointerType transform) const {
+            SamplerPointerType copySampler = m_sampler->CloneForTarget(model, coefficients, transform);
             return new ASMNormalDirectionFeatureExtractor(copySampler, m_sigma);
         }
 

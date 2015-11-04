@@ -39,6 +39,7 @@
 #define STATISMO_ACTIVESHAPEMODEL_H
 
 #include "MultiVariateNormalDistribution.h"
+#include "MeshRepresenter.h"
 #include "StatisticalModel.h"
 #include "ASMProfile.h"
 #include "ASMFeatureExtractor.h"
@@ -50,7 +51,7 @@ namespace statismo {
     class ActiveShapeModel {
 
     public:
-        typedef Representer<TPointSet> RepresenterType;
+        typedef MeshRepresenter<TPointSet> RepresenterType;
         typedef StatisticalModel<TPointSet> StatisticalModelType;
         typedef typename RepresenterType::PointType PointType;
         typedef ASMFeatureExtractorFactory<TPointSet, TImage> FeatureExtractorFactoryType;
@@ -82,6 +83,11 @@ namespace statismo {
             return m_statisticalModel;
         }
 
+        const RepresenterType* GetRepresenter() const {
+            return (const RepresenterType*) GetStatisticalModel()->GetRepresenter();
+        }
+
+
         const FeatureExtractorType *GetFeatureExtractor() const {
             return m_featureExtractor;
         }
@@ -108,6 +114,13 @@ namespace statismo {
             return statismo::MultiVariateNormalDistribution(mean, covariances);
         }
 
+        ActiveShapeModel<TPointSet, TImage>* CloneWithStatisticalModel(const StatisticalModelType* statisticalModel) const {
+            const ImagePreprocessorType* preprocessor = m_preprocessor->Clone();
+            const FeatureExtractorType* featureExtractor = m_featureExtractor->Clone();
+            std::vector<ASMProfile> profiles = m_profiles;
+            ActiveShapeModel<TPointSet, TImage>* r =  new ActiveShapeModel(statisticalModel, preprocessor, featureExtractor, profiles);
+            return r;
+        }
 
         static ActiveShapeModel<TPointSet, TImage> *Load(RepresenterType *representer,
                                                                const std::string &filename) {
