@@ -2,6 +2,9 @@
 #define STATISMO_ITKASMGAUSSIANGRADIENTIMAGEPREPROCESSOR_H
 
 #include "ASMImagePreprocessor.h"
+#include "itkDiscreteGaussianImageFilter.h"
+#include "itkBSplineInterpolateImageFunction.h"
+
 namespace itk {
 
     template <typename TPointSet, typename TImage>

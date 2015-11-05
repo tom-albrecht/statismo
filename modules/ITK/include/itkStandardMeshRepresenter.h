@@ -43,6 +43,7 @@
 #include <boost/unordered_map.hpp>
 
 #include <itkMesh.h>
+#include <itkImage.h>
 #include <itkObject.h>
 
 #include "statismoITKConfig.h" // this needs to be the first include file
