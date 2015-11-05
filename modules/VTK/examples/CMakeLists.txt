@@ -14,7 +14,6 @@ set( _examples
   vtkCrossValidationExample
   vtkReduceModelVarianceExample
   vtkSpatiallyVaryingGPModelExample
-  vtkActiveShapeModellingTest
 )
 
 foreach( e ${_examples} )

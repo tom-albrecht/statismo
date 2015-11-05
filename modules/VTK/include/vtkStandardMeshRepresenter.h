@@ -54,14 +54,16 @@ namespace statismo {
 
 template <>
 struct RepresenterTraits<vtkPolyData> {
+public:
     typedef vtkPolyData* DatasetPointerType;
     typedef const vtkPolyData* DatasetConstPointerType;
 
     typedef vtkPoint PointType;
     typedef vtkPoint ValueType;
 
-    ///@}
-
+    // FIXME!!!!
+    typedef void RigidTransformType;
+    typedef void* RigidTransformPointerType;
 
 };
 

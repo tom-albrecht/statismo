@@ -1,7 +1,6 @@
 add_library( statismo_VTK ${statismo_LIB_TYPE}
   vtkStandardMeshRepresenter.cxx
-  vtkUnstructuredGridRepresenter.cxx
-../examples/ActiveShapeModellingTest.h ../examples/vtkActiveShapeModellingTest.cxx)
+  vtkUnstructuredGridRepresenter.cxx)
 target_link_libraries( statismo_VTK
   statismo_core
   ${VTK_LIBRARIES}

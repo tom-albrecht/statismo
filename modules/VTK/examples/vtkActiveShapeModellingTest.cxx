@@ -7,12 +7,18 @@
 
 #include "vtkStandardMeshRepresenter.h"
 
+typedef statismo::ActiveShapeModel<vtkPolyData, vtkStructuredPoints> vtkActiveShapeModelType;
+
+
 class vtkASMNormalDirectionFeatureExtractor : public statismo::ASMFeatureExtractor<vtkPolyData, vtkStructuredPoints> {
 public:
     const vtkASMNormalDirectionFeatureExtractor* SetImage(const vtkStructuredPoints* image) const {return this;};
     const vtkASMNormalDirectionFeatureExtractor* SetPointset(const vtkPolyData *dataset) const  {return this;};
     statismo::VectorType ExtractFeatures(const statismo::vtkPoint& point) const {return statismo::VectorType::Zero(5);} ;
 
+    virtual vtkASMNormalDirectionFeatureExtractor* Clone() const {};
+    virtual vtkASMNormalDirectionFeatureExtractor* CloneForTarget(const vtkActiveShapeModelType* const model, const statismo::VectorType& coefficients, const RigidTransformPointerType transform) const = 0;
+    virtual bool ExtractFeatures(statismo::VectorType& output, const PreprocessedImageType* const image, const PointType& point) const = 0;
 };
 
 class vtkASMNormalDirectionFeatureExtractorFactory : public statismo::ASMFeatureExtractorFactory<vtkPolyData, vtkStructuredPoints> {
@@ -39,7 +45,7 @@ vtkASMNormalDirectionFeatureExtractorFactory* vtkASMNormalDirectionFeatureExtrac
 
 
 
-class vtkPointSampler : public statismo::ASMPointSampler<vtkPolyData> {
+class vtkPointSampler : public statismo::ASMPointSampler<vtkPolyData, vtkStructuredPoints> {
 public:
     vtkPointSampler(vtkPolyData* mesh) : ASMPointSampler<vtkPolyData>(mesh) {}
 
@@ -63,7 +69,6 @@ int main(int argc, char *argv[]) {
 
     statismo::ASMFeatureExtractorFactory<vtkPolyData, vtkStructuredPoints>::RegisterImplementation(vtkASMNormalDirectionFeatureExtractorFactory::GetInstance());
 
-    typedef statismo::ActiveShapeModel<vtkPolyData, vtkStructuredPoints> vtkActiveShapeModelType;
 
 
     std::string modelname("/home/langguth/workspaces.exported/stk.idea/bladderdemo/src/main/resources/bladder/asmModels/asmLevel-1.h5");
