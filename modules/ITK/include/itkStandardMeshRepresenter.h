@@ -73,7 +73,7 @@ struct RepresenterTraits<itk::Mesh<float, 3u> > {
     typedef MeshType::PointType ValueType;
 
     typedef itk::Rigid3DTransform<float> RigidTransformType;
-    typedef typename RigidTransformType::Pointer RigidTransformPointerType;
+    typedef RigidTransformType::Pointer RigidTransformPointerType;
 };
 
 }
