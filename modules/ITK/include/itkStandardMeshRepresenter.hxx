@@ -456,7 +456,7 @@ StandardMeshRepresenter<TPixel, MeshDimension>::TransformMesh(typename MeshType:
 };
 
 template <class TPixel, unsigned MeshDimension>
-typename StandardMeshRepresenter<TPixel, MeshDimension>::RepresenterBaseType::RigidTransformPointerType
+typename StandardMeshRepresenter<TPixel, MeshDimension>::RigidTransformPointerType
 StandardMeshRepresenter<TPixel, MeshDimension>::ComputeRigidTransformFromLandmarks(const std::vector<PointType> &fixedLandmarks, const std::vector<PointType> &movingLandmarks) const {
     // initialize the rigid transform
     typedef itk::Image<float, MeshDimension> DistanceImageType;

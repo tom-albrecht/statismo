@@ -115,6 +115,8 @@ class StandardMeshRepresenter : public statismo::MeshRepresenter<itk::Mesh<TPixe
     typedef typename RepresenterBaseType::ValueType ValueType;
     typedef typename RepresenterBaseType::DatasetPointerType DatasetPointerType;
     typedef typename RepresenterBaseType::DatasetConstPointerType DatasetConstPointerType;
+    typedef typename RepresenterBaseType::RigidTransformPointerType RigidTransformPointerType;
+
     typedef typename MeshType::PointsContainer PointsContainerType;
 
     /** New macro for creation of through a Smart Pointer. */
@@ -219,9 +221,9 @@ class StandardMeshRepresenter : public statismo::MeshRepresenter<itk::Mesh<TPixe
     void DeleteDataset(DatasetPointerType d) const { };
     DatasetPointerType CloneDataset(DatasetConstPointerType mesh) const;
 
-    virtual PointType TransformPoint(PointType &point, const typename RepresenterBaseType::RigidTransformPointerType transform, bool inverse) const;
-    virtual typename MeshType::Pointer TransformMesh(typename MeshType::Pointer mesh, const typename RepresenterBaseType::RigidTransformPointerType transform) const;
-    virtual typename RepresenterBaseType::RigidTransformPointerType ComputeRigidTransformFromLandmarks(const std::vector<PointType> &fixedLandmarks, const std::vector<PointType> &movingLandmarks) const;
+    virtual PointType TransformPoint(PointType &point, const RigidTransformPointerType transform, bool inverse) const;
+    virtual typename MeshType::Pointer TransformMesh(typename MeshType::Pointer mesh, const RigidTransformPointerType transform) const;
+    virtual RigidTransformPointerType ComputeRigidTransformFromLandmarks(const std::vector<PointType> &fixedLandmarks, const std::vector<PointType> &movingLandmarks) const;
 
   private:
 

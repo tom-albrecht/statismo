@@ -78,7 +78,6 @@ namespace itk {
             if (m_impl) {
                 delete m_impl;
             }
-            std::cout << "ASM Impl object set to " << impl << std::endl;
             m_impl = impl;
         }
 

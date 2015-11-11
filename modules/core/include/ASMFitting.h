@@ -51,11 +51,11 @@ namespace statismo {
         float m_modelCoefficientBounds;
 
     public:
-        ASMFittingConfiguration(float featureDistanceThreshold, float pointDistanceThreshold, float modelCoefficientBounds) :
+        ASMFittingConfiguration(float featureDistanceThreshold, float pointDistanceThreshold,
+                                float modelCoefficientBounds) :
                 m_featureDistanceThreshold(featureDistanceThreshold),
                 m_pointDistanceThreshold(pointDistanceThreshold),
-                m_modelCoefficientBounds(modelCoefficientBounds)
-        {}
+                m_modelCoefficientBounds(modelCoefficientBounds) { }
 
 
         float GetFeatureDistanceThreshold() const {
@@ -71,22 +71,22 @@ namespace statismo {
         }
     };
 
-    template <typename RigidTransformPointerType>
+    template<typename RigidTransformPointerType>
     class ASMFittingResult {
     public:
         ASMFittingResult() : m_isValid(false) {
         }
 
         ASMFittingResult(bool isValid, VectorType coefficients, RigidTransformPointerType rigidTransform) :
-            m_isValid(isValid),
-            m_coefficients(coefficients),
-            m_rigidTransform(rigidTransform) {}
+                m_isValid(isValid),
+                m_coefficients(coefficients),
+                m_rigidTransform(rigidTransform) { }
 
         bool IsValid() {
             return m_isValid;
         }
 
-         VectorType GetCoefficients() {
+        VectorType GetCoefficients() {
             return m_coefficients;
         }
 
@@ -100,7 +100,7 @@ namespace statismo {
         RigidTransformPointerType m_rigidTransform;
     };
 
-    template <typename TPointSet, typename TImage>
+    template<typename TPointSet, typename TImage>
     class ASMFittingStep {
         typedef ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
         typedef ASMPointSampler<TPointSet, TImage> PointSamplerType;
@@ -110,49 +110,60 @@ namespace statismo {
         typedef ASMPreprocessedImage<TPointSet> PreprocessedImageType;
         typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
 
-        ASMFittingStep(const ASMFittingConfiguration& configuration, const ActiveShapeModelType* activeShapeModel,
-                  const VectorType sourceCoefficients, const RigidTransformPointerType sourceTransform, const PreprocessedImageType* targetImage, const PointSamplerType* sampler)
+        ASMFittingStep(const ASMFittingConfiguration &configuration, const ActiveShapeModelType *activeShapeModel,
+                       const VectorType sourceCoefficients, const RigidTransformPointerType sourceTransform,
+                       const PreprocessedImageType *targetImage, const PointSamplerType *sampler)
                 :
                 m_configuration(configuration),
                 m_model(activeShapeModel),
                 m_sourceCoefficients(sourceCoefficients),
                 m_sourceTransform(sourceTransform),
                 m_target(targetImage),
-                m_sampler(sampler)
-                //m_source(m_model->GetStatisticalModel()->DrawSample(sourceCoefficients, false))
-        //m_featureExtractor(m_model->GetFeatureExtractor()->SetImage(m_targetImage)->SetPointset(m_inputMesh))
-        {
-
-        }
+                m_sampler(sampler) { }
 
     public:
 
-        static ASMFittingStep* Create(const ASMFittingConfiguration& configuration, const ActiveShapeModelType* activeShapeModel,
-                                     const VectorType sourceCoefficients, const RigidTransformPointerType sourceTransform, const PreprocessedImageType* targetImage, const PointSamplerType* sampler) {
-            return new ASMFittingStep(configuration, activeShapeModel, sourceCoefficients, sourceTransform, targetImage, sampler);
+        static ASMFittingStep *Create(const ASMFittingConfiguration &configuration,
+                                      const ActiveShapeModelType *activeShapeModel,
+                                      const VectorType sourceCoefficients,
+                                      const RigidTransformPointerType sourceTransform,
+                                      const PreprocessedImageType *targetImage, const PointSamplerType *sampler) {
+            return new ASMFittingStep(configuration, activeShapeModel, sourceCoefficients, sourceTransform, targetImage,
+                                      sampler);
         }
 
         ~ASMFittingStep() {
-            //FIXME: clean up m_source
         }
 
         ASMFittingResult<RigidTransformPointerType> Perform() const {
-            typename StatisticalModelType::PointValueListType deplacements;
+            typename StatisticalModelType::PointValueListType deformations;
+            std::vector<PointType> referencePoints;
+            std::vector<PointType> targetPoints;
+
             std::vector<ASMProfile> profiles = m_model->GetProfiles();
 
             unsigned int dimensions = m_model->GetStatisticalModel()->GetRepresenter()->GetDimensions();
 
             std::vector<PointType> domainPoints = m_model->GetStatisticalModel()->GetRepresenter()->GetDomain().GetDomainPoints();
 
-            PointSamplerType* sampler = m_sampler->CloneForTarget(m_model, m_sourceCoefficients, m_sourceTransform);
-            FeatureExtractorType* fe = m_model->GetFeatureExtractor()->CloneForTarget(m_model, m_sourceCoefficients, m_sourceTransform);
+            PointSamplerType *sampler = m_sampler->CloneForTarget(m_model, m_sourceCoefficients, m_sourceTransform);
+            FeatureExtractorType *fe = m_model->GetFeatureExtractor()->CloneForTarget(m_model, m_sourceCoefficients,
+                                                                                      m_sourceTransform);
 
-            for (std::vector<ASMProfile>::const_iterator profile = profiles.begin(); profile != profiles.end(); ++profile) {
+            for (std::vector<ASMProfile>::const_iterator profile = profiles.begin();
+                 profile != profiles.end(); ++profile) {
                 unsigned pointId = (*profile).GetPointId();
-                PointType profilePoint = m_model->GetStatisticalModel()->DrawSampleAtPoint(m_sourceCoefficients, pointId, false);
-                PointType transformedProfilePoint = m_model->GetRepresenter()->TransformPoint(profilePoint, m_sourceTransform);
-                PointType candidatePoint;
-                float featureDistance = FindBestMatchingPointForProfile(candidatePoint, sampler, fe, transformedProfilePoint, (*profile).GetDistribution());
+                PointType profilePoint = m_model->GetStatisticalModel()->DrawSampleAtPoint(m_sourceCoefficients,
+                                                                                           pointId, false);
+                PointType transformedProfilePoint = m_model->GetRepresenter()->TransformPoint(profilePoint,
+                                                                                              m_sourceTransform);
+                PointType transformedCandidatePoint;
+                float featureDistance = FindBestMatchingPointForProfile(transformedCandidatePoint, sampler, fe,
+                                                                        transformedProfilePoint,
+                                                                        (*profile).GetDistribution());
+                //std::cout << profilePoint << " -> " << transformedProfilePoint << " " << featureDistance << std::endl;
+                PointType candidatePoint = m_model->GetRepresenter()->TransformPoint(transformedCandidatePoint,
+                                                                                     m_sourceTransform, true);
                 if (featureDistance <= m_configuration.GetFeatureDistanceThreshold()) {
                     statismo::VectorType point(dimensions);
                     for (int i = 0; i < dimensions; ++i) {
@@ -163,7 +174,9 @@ namespace statismo {
 
                     if (pointDistance <= m_configuration.GetPointDistanceThreshold()) {
                         PointType refPoint = domainPoints[pointId];
-                        deplacements.push_back(std::make_pair(refPoint, candidatePoint));
+                        deformations.push_back(std::make_pair(refPoint, candidatePoint));
+                        referencePoints.push_back(refPoint);
+                        targetPoints.push_back(transformedCandidatePoint);
                     } else {
                         // shape distance is larger than threshold
                     }
@@ -176,77 +189,44 @@ namespace statismo {
             fe->Delete();
 
 
-            if (deplacements.size() > 0) {
-                std::vector<PointType> reference;
-                std::vector<PointType> target;
-
-                for (typename StatisticalModelType::PointValueListType::const_iterator deplace = deplacements.begin(); deplace != deplacements.end(); ++deplace) {
-                    reference.push_back(deplace->first);
-                    target.push_back(deplace->second);
-                }
-
-                RigidTransformPointerType adjust = m_model->GetRepresenter()->ComputeRigidTransformFromLandmarks(reference, target);
-                //RigidTransformPointerType adjust = m_model->GetRepresenter()->ComputeRigidTransformFromLandmarks(target, reference);
-                if (adjust) {
-                    std::cout << "constraints: " << deplacements.size() << std::endl;
-//                    for(typename std::vector<PointType>::const_iterator pt = fixed.begin(); pt != fixed.end(); ++pt) {
-//                        PointType ox = *pt;
-//                        PointType tx = m_model->GetRepresenter()->TransformPoint(ox, adjust);
-//                        std::cout << ox << " -> " << tx << std::endl;
-//                    }
-//                    std::cout << std::endl<< std::endl<< std::endl;
-//                    for(typename std::vector<PointType>::const_iterator pt = moving.begin(); pt != moving.end(); ++pt) {
-//                        PointType ox = *pt;
-//                        PointType tx = m_model->GetRepresenter()->TransformPoint(ox, adjust);
-//                        std::cout << ox << " -> " << tx << std::endl;
-//                    }
-//                    std::cout << std::endl<< std::endl<< std::endl;
-                }
-                if (adjust) {
-                    // We need to transform back the candidate points to the model space to calculate coefficients
-                    deplacements.clear();
-                    int i = 0;
-                    for(typename std::vector<PointType>::const_iterator ref = reference.begin(); ref != reference.end(); ++ref) {
-                        PointType refPt = *ref;
-                        PointType tgtPtT = target[i];
-                        PointType tgtPtR = m_model->GetRepresenter()->TransformPoint(tgtPtT, adjust, true);
-                        //std::cout << refPt << " -> " << tgtPtT << " -> " << tgtPtR <<std::endl;
-                        deplacements.push_back(std::make_pair(refPt,tgtPtR));
-                        ++i;
-                    }
-
-                }
-
-                VectorType coeffs = m_model->GetStatisticalModel()->ComputeCoefficientsForPointValues(deplacements, 1e-6);
+            if (deformations.size() > 0) {
+                //std::cout << "constraints: " << deformations.size() << std::endl;
+                VectorType coeffs = m_model->GetStatisticalModel()->ComputeCoefficientsForPointValues(deformations,
+                                                                                                      1e-6);
 
                 float maxCoeff = m_configuration.GetModelCoefficientBounds();
                 for (size_t i = 0; i < coeffs.size(); ++i) {
                     coeffs(i) = std::min(maxCoeff, std::max(-maxCoeff, coeffs(i)));
                 }
-                // , m_model->GetStatisticalModel()->DrawSample(coeffs)
+                RigidTransformPointerType adjust = m_model->GetRepresenter()->ComputeRigidTransformFromLandmarks(
+                        referencePoints, targetPoints);
                 return ASMFittingResult<RigidTransformPointerType>(true, coeffs, adjust);
 
             } else {
                 // Invalid result: coefficients with no content
-                std::cout << "FIXME: returning invalid result" << std::endl;
+                //std::cout << "returning invalid result" << std::endl;
                 VectorType coeffs;
                 return ASMFittingResult<RigidTransformPointerType>(false, coeffs, 0);
             }
         }
+
     private:
-        const ActiveShapeModelType* m_model;
+        const ActiveShapeModelType *m_model;
         const VectorType m_sourceCoefficients;
         const RigidTransformPointerType m_sourceTransform;
-        const PreprocessedImageType* m_target;
-        const PointSamplerType* m_sampler;
+        const PreprocessedImageType *m_target;
+        const PointSamplerType *m_sampler;
         ASMFittingConfiguration m_configuration;
 
-        float FindBestMatchingPointForProfile(PointType &result, const PointSamplerType* sampler, const FeatureExtractorType* const fe, const PointType &profilePoint, const statismo::MultiVariateNormalDistribution &profile) const {
+        float FindBestMatchingPointForProfile(PointType &result, const PointSamplerType *sampler,
+                                              const FeatureExtractorType *const fe, const PointType &profilePoint,
+                                              const statismo::MultiVariateNormalDistribution &profile) const {
             float bestFeatureDistance = -1;
 
             std::vector<PointType> samples = sampler->Sample(profilePoint);
 
-            for (typename std::vector<PointType>::const_iterator sample = samples.begin(); sample != samples.end(); ++sample) {
+            for (typename std::vector<PointType>::const_iterator sample = samples.begin();
+                 sample != samples.end(); ++sample) {
                 statismo::VectorType features;
                 bool ok = fe->ExtractFeatures(features, m_target, *sample);
                 if (ok) {
