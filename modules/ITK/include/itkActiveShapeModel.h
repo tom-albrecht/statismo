@@ -100,6 +100,13 @@ namespace itk {
             return StatisticalModelPointerType(p.GetPointer());
         }
 
+        void SetStatisticalModel(StatisticalModelPointerType ssm) {
+            StatisticalModelImplType* m = ssm->GetstatismoImplObj();
+            StatisticalModelImplType* nm = StatisticalModelImplType::Create(m->GetRepresenter(), m->GetMeanVector(), m->GetOrthonormalPCABasisMatrix(), m->GetPCAVarianceVector(), m->GetNoiseVariance());
+            ImplType* newImpl = GetstatismoImplObj()->CloneWithStatisticalModel(nm);
+            SetstatismoImplObj(newImpl);
+        }
+
         const StatisticalModelImplType * GetstatismoImplOfStatisticalModel() const {
             return m_impl->GetStatisticalModel();
         }
@@ -112,15 +119,6 @@ namespace itk {
             }
         }
 
-//        Pointer Transform(RigidTransformPointerType rigidTransform) const {
-//            BasicRigidTransformationType* basicTransform = new BasicRigidTransformationType(rigidTransform);
-//
-//            Pointer n = ActiveShapeModel::New();
-//            n->SetstatismoImplObj(m_impl->Transform(basicTransform));
-//
-//            delete basicTransform;
-//            return n;
-//        }
     private:
         ImplType* m_impl;
     };
