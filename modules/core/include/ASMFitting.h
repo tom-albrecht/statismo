@@ -41,6 +41,9 @@
 
 #include "ActiveShapeModel.h"
 #include "ASMPointSampler.h"
+#include <boost/thread.hpp>
+#include <boost/scoped_ptr.hpp>
+#include <boost/thread/future.hpp>
 
 namespace statismo {
 
@@ -121,7 +124,115 @@ namespace statismo {
                 m_target(targetImage),
                 m_sampler(sampler) { }
 
+    private:
+        class ProfileResult {
+        public:
+            unsigned int pointId;
+            PointType candidatePoint;
+            PointType transformedCandidatePoint;
+        };
+
+        class ChunkResult {
+        public:
+            ChunkResult() { }
+
+            std::vector<ProfileResult> results;
+
+            // emulate move semantics, as boost::async seems to depend on it.
+            ChunkResult &operator=(BOOST_COPY_ASSIGN_REF(ChunkResult)rhs) { // Copy assignment
+                if (&rhs != this) {
+                    copyMembers(rhs);
+                }
+                return *this;
+            }
+
+            ChunkResult(BOOST_RV_REF(ChunkResult)that) { //Move constructor
+                copyMembers(that);
+            }
+
+            ChunkResult &operator=(BOOST_RV_REF(ChunkResult)rhs) { //Move assignment
+                if (&rhs != this) {
+                    copyMembers(rhs);
+                }
+                return *this;
+            }
+
+        private:
+        BOOST_COPYABLE_AND_MOVABLE(ChunkResult)
+
+            void copyMembers(const ChunkResult &that) {
+                results = that.results;
+            }
+        };
+
+        class ChunkRequest {
+        public:
+            ChunkRequest(std::vector<ASMProfile> *_profiles, PointSamplerType *_sampler,
+                         FeatureExtractorType *_featureExtractor, unsigned int _dimensions) : profiles(_profiles),
+                                                                                              sampler(_sampler),
+                                                                                              featureExtractor(
+                                                                                                      _featureExtractor),
+                                                                                              dimensions(
+                                                                                                      _dimensions) { }
+
+            unsigned int startInclusive;
+            unsigned int endExclusive;
+            std::vector<ASMProfile> *profiles;
+            PointSamplerType *sampler;
+            FeatureExtractorType *featureExtractor;
+            unsigned int dimensions;
+        };
+
+
+        ChunkResult PerformChunk(ChunkRequest in) const {
+            ChunkResult out;
+            unsigned int index = in.startInclusive;
+
+            for (std::vector<ASMProfile>::const_iterator profile = (in.profiles->begin() + index);
+                 index < in.endExclusive; ++index, ++profile) {
+                ProfileResult result;
+                bool resultValid = false;
+                unsigned pointId = (*profile).GetPointId();
+                PointType profilePoint = m_model->GetStatisticalModel()->DrawSampleAtPoint(m_sourceCoefficients,
+                                                                                           pointId, false);
+                PointType transformedProfilePoint = m_model->GetRepresenter()->TransformPoint(profilePoint,
+                                                                                              m_sourceTransform);
+                PointType transformedCandidatePoint;
+                float featureDistance = FindBestMatchingPointForProfile(transformedCandidatePoint, in.sampler,
+                                                                        in.featureExtractor,
+                                                                        transformedProfilePoint,
+                                                                        (*profile).GetDistribution());
+                //std::cout << profilePoint << " -> " << transformedProfilePoint << " " << featureDistance << std::endl;
+                PointType candidatePoint = m_model->GetRepresenter()->TransformPoint(transformedCandidatePoint,
+                                                                                     m_sourceTransform, true);
+                if (featureDistance <= m_configuration.GetFeatureDistanceThreshold()) {
+                    statismo::VectorType point(in.dimensions);
+                    for (int i = 0; i < in.dimensions; ++i) {
+                        point[i] = candidatePoint[i];
+                    }
+                    statismo::MultiVariateNormalDistribution marginal = m_model->GetMarginalAtPointId(pointId);
+                    float pointDistance = marginal.MahalanobisDistance(point);
+
+                    if (pointDistance <= m_configuration.GetPointDistanceThreshold()) {
+                        result.pointId = pointId;
+                        result.candidatePoint = candidatePoint;
+                        result.transformedCandidatePoint = transformedCandidatePoint;
+                        resultValid = true;
+                    } else {
+                        // shape distance is larger than threshold
+                    }
+                } else {
+                    // feature distance is larger than threshold
+                }
+                if (resultValid) {
+                    out.results.push_back(result);
+                }
+            }
+            return out;
+        }
+
     public:
+
 
         static ASMFittingStep *Create(const ASMFittingConfiguration &configuration,
                                       const ActiveShapeModelType *activeShapeModel,
@@ -150,39 +261,44 @@ namespace statismo {
             FeatureExtractorType *fe = m_model->GetFeatureExtractor()->CloneForTarget(m_model, m_sourceCoefficients,
                                                                                       m_sourceTransform);
 
-            for (std::vector<ASMProfile>::const_iterator profile = profiles.begin();
-                 profile != profiles.end(); ++profile) {
-                unsigned pointId = (*profile).GetPointId();
-                PointType profilePoint = m_model->GetStatisticalModel()->DrawSampleAtPoint(m_sourceCoefficients,
-                                                                                           pointId, false);
-                PointType transformedProfilePoint = m_model->GetRepresenter()->TransformPoint(profilePoint,
-                                                                                              m_sourceTransform);
-                PointType transformedCandidatePoint;
-                float featureDistance = FindBestMatchingPointForProfile(transformedCandidatePoint, sampler, fe,
-                                                                        transformedProfilePoint,
-                                                                        (*profile).GetDistribution());
-                //std::cout << profilePoint << " -> " << transformedProfilePoint << " " << featureDistance << std::endl;
-                PointType candidatePoint = m_model->GetRepresenter()->TransformPoint(transformedCandidatePoint,
-                                                                                     m_sourceTransform, true);
-                if (featureDistance <= m_configuration.GetFeatureDistanceThreshold()) {
-                    statismo::VectorType point(dimensions);
-                    for (int i = 0; i < dimensions; ++i) {
-                        point[i] = candidatePoint[i];
-                    }
-                    statismo::MultiVariateNormalDistribution marginal = m_model->GetMarginalAtPointId(pointId);
-                    float pointDistance = marginal.MahalanobisDistance(point);
+            unsigned int profilesCount = profiles.size();
+            unsigned int chunksCount = boost::thread::hardware_concurrency();
+            if (chunksCount > profilesCount) chunksCount = profilesCount; // anybody have a 2048-core machine? ;-)
+            if (chunksCount == 0) chunksCount = 1; // just in case
+            unsigned int chunkSize = profilesCount / chunksCount;
 
-                    if (pointDistance <= m_configuration.GetPointDistanceThreshold()) {
-                        PointType refPoint = domainPoints[pointId];
-                        deformations.push_back(std::make_pair(refPoint, candidatePoint));
-                        referencePoints.push_back(refPoint);
-                        targetPoints.push_back(transformedCandidatePoint);
-                    } else {
-                        // shape distance is larger than threshold
-                    }
+            std::vector<ChunkRequest> requests;
+            std::vector<boost::future<ChunkResult> *> results;
+
+            for (unsigned int i = 0; i < chunksCount; ++i) {
+                ChunkRequest request(&profiles, sampler, fe, dimensions);
+                request.startInclusive = i * chunkSize;
+                if (i == chunksCount - 1) {
+                    request.endExclusive = profilesCount;
                 } else {
-                    // feature distance is larger than threshold
+                    request.endExclusive = (i + 1) * chunkSize;
                 }
+                requests.push_back(request);
+            }
+
+            for (typename std::vector<ChunkRequest>::const_iterator r = requests.begin(); r != requests.end(); ++r) {
+                //results.push_back(PerformChunk((*r)));
+                ChunkRequest req = (*r);
+                boost::future<ChunkResult> *fut = new boost::future<ChunkResult>(boost::async(boost::launch::async,boost::bind(&ASMFittingStep<TPointSet, TImage>::PerformChunk,this, req)));
+                results.push_back(fut);
+            }
+
+            for (typename std::vector<boost::future<ChunkResult> *>::const_iterator future = results.begin();
+                 future != results.end(); ++future) {
+                ChunkResult chunk = (*future)->get();
+                for (typename std::vector<ProfileResult>::const_iterator p = chunk.results.begin();
+                     p != chunk.results.end(); ++p) {
+                    PointType refPoint = domainPoints[(*p).pointId];
+                    deformations.push_back(std::make_pair(refPoint, (*p).candidatePoint));
+                    referencePoints.push_back(refPoint);
+                    targetPoints.push_back((*p).transformedCandidatePoint);
+                }
+                delete (*future);
             }
 
             sampler->Delete();
