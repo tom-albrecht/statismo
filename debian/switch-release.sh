@@ -10,7 +10,7 @@ if [ "$#" -lt 2 ]; then
     helpcall
 fi
 
-vtk=5
+vtk=6
 
 while getopts "v:d:" opt; do
     case "$opt" in
@@ -32,7 +32,7 @@ cp -f changelog changelog.bck
 cp -f control control.bck
 vtk=libvtk$vtk-dev
 echo $vtk
-sed -i "s|libvtk5-dev|$vtk|g" control
+sed -i "s|libvtk6-dev|$vtk|g" control
 cd ../
 dch -r -D $distrib
 debuild -S -I

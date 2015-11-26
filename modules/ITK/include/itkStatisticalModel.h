@@ -256,7 +256,7 @@ class StatisticalModel : public Object {
     float GetNoiseVariance() const {
         return callstatismoImpl(boost::bind(&ImplType::GetNoiseVariance, this->GetstatismoImplObj()));
     }
-    
+
     MatrixType GetCovarianceAtPoint(const PointType& pt1, const PointType& pt2) const {
         typedef statismo::MatrixType (ImplType::*functype)(const PointType&, const PointType&) const;
         return  toVnlMatrix(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::GetCovarianceAtPoint), this->GetstatismoImplObj(), pt1, pt2)));
