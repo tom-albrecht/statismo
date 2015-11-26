@@ -11,6 +11,7 @@
 #include "itkASMGaussianGradientImagePreprocessor.h"
 #include "itkActiveShapeModel.h"
 #include "itkASMFitting.h"
+#include "sys/time.h"
 #include "itkMeshFileWriter.h"
 //#include "itkRigidTransformModelBuilder.h"
 
@@ -40,6 +41,23 @@ statismo::VectorType fromVnlVector(const VnlVectorType& v) {
 
 }
 
+typedef int64_t msec_t;
+
+#if defined(__WIN32__)
+#include <windows.h>
+msec_t time_ms(void)
+{
+    return timeGetTime();
+}
+#else
+#include <sys/time.h>
+msec_t time_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (msec_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+#endif
 
 int main(int argc, char *argv[]) {
 
@@ -105,7 +123,7 @@ int main(int argc, char *argv[]) {
     statismo::ASMPreprocessedImage<MeshType> *pimage = aModel->GetstatismoImplObj()->GetImagePreprocessor()->Preprocess(image);
 
     // just for testing
-    aModel->SetStatisticalModel(aModel->GetStatisticalModel());
+    //aModel->SetStatisticalModel(aModel->GetStatisticalModel());
 
     statismo::VectorType coeffs = statismo::VectorType::Zero(aModel->GetStatisticalModel()->GetNumberOfPrincipalComponents());
 
@@ -132,7 +150,8 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Initialization done." << std::endl;
 
-    for (int i =0; i < 10; ++i) {
+    for (int i =1; i <= 10; ++i) {
+        msec_t start = time_ms();
         std::cout << "iteration: " << i << std::endl;
         fittingStep->SetCoefficients(coeffs);
         fittingStep->SetRigidTransformation(currentTransform);
@@ -145,6 +164,9 @@ int main(int argc, char *argv[]) {
         coeffs = fromVnlVector(result->GetCoefficients());
         currentTransform = result->GetRigidTransformation();
         std::cout << "coeffs (adj)" << toVnlVector(coeffs) << std::endl;
+        msec_t end = time_ms();
+        msec_t elapsed = end - start;
+        std::cout << "Elapsed " << elapsed << std::endl;
         if (currentTransform) {
             std::cout << "Writing result of iteration " << i << std::endl;
             itk::MeshFileWriter<MeshType>::Pointer writer = itk::MeshFileWriter<MeshType>::New();
@@ -158,3 +180,4 @@ int main(int argc, char *argv[]) {
     }
     return 0;
 }
+

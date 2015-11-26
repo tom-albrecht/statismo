@@ -167,19 +167,13 @@ namespace statismo {
 
         class ChunkRequest {
         public:
-            ChunkRequest(std::vector<ASMProfile> *_profiles, PointSamplerType *_sampler,
-                         FeatureExtractorType *_featureExtractor, unsigned int _dimensions) : profiles(_profiles),
-                                                                                              sampler(_sampler),
-                                                                                              featureExtractor(
-                                                                                                      _featureExtractor),
+            ChunkRequest(std::vector<ASMProfile> *_profiles, unsigned int _dimensions) : profiles(_profiles),
                                                                                               dimensions(
                                                                                                       _dimensions) { }
 
             unsigned int startInclusive;
             unsigned int endExclusive;
             std::vector<ASMProfile> *profiles;
-            PointSamplerType *sampler;
-            FeatureExtractorType *featureExtractor;
             unsigned int dimensions;
         };
 
@@ -187,6 +181,9 @@ namespace statismo {
         ChunkResult PerformChunk(ChunkRequest in) const {
             ChunkResult out;
             unsigned int index = in.startInclusive;
+
+            PointSamplerType *sampler = m_sampler->CloneForTarget(m_model, m_sourceCoefficients, m_sourceTransform);
+            FeatureExtractorType *fe = m_model->GetFeatureExtractor()->CloneForTarget(m_model, m_sourceCoefficients,m_sourceTransform);
 
             for (std::vector<ASMProfile>::const_iterator profile = (in.profiles->begin() + index);
                  index < in.endExclusive; ++index, ++profile) {
@@ -198,8 +195,8 @@ namespace statismo {
                 PointType transformedProfilePoint = m_model->GetRepresenter()->TransformPoint(profilePoint,
                                                                                               m_sourceTransform);
                 PointType transformedCandidatePoint;
-                float featureDistance = FindBestMatchingPointForProfile(transformedCandidatePoint, in.sampler,
-                                                                        in.featureExtractor,
+                float featureDistance = FindBestMatchingPointForProfile(transformedCandidatePoint, sampler,
+                                                                        fe,
                                                                         transformedProfilePoint,
                                                                         (*profile).GetDistribution());
                 //std::cout << profilePoint << " -> " << transformedProfilePoint << " " << featureDistance << std::endl;
@@ -228,6 +225,8 @@ namespace statismo {
                     out.results.push_back(result);
                 }
             }
+            sampler->Delete();
+            fe->Delete();
             return out;
         }
 
@@ -257,10 +256,6 @@ namespace statismo {
 
             std::vector<PointType> domainPoints = m_model->GetStatisticalModel()->GetRepresenter()->GetDomain().GetDomainPoints();
 
-            PointSamplerType *sampler = m_sampler->CloneForTarget(m_model, m_sourceCoefficients, m_sourceTransform);
-            FeatureExtractorType *fe = m_model->GetFeatureExtractor()->CloneForTarget(m_model, m_sourceCoefficients,
-                                                                                      m_sourceTransform);
-
             unsigned int profilesCount = profiles.size();
             unsigned int chunksCount = boost::thread::hardware_concurrency();
             if (chunksCount > profilesCount) chunksCount = profilesCount; // anybody have a 2048-core machine? ;-)
@@ -271,7 +266,7 @@ namespace statismo {
             std::vector<boost::future<ChunkResult> *> results;
 
             for (unsigned int i = 0; i < chunksCount; ++i) {
-                ChunkRequest request(&profiles, sampler, fe, dimensions);
+                ChunkRequest request(&profiles, dimensions);
                 request.startInclusive = i * chunkSize;
                 if (i == chunksCount - 1) {
                     request.endExclusive = profilesCount;
@@ -282,7 +277,6 @@ namespace statismo {
             }
 
             for (typename std::vector<ChunkRequest>::const_iterator r = requests.begin(); r != requests.end(); ++r) {
-                //results.push_back(PerformChunk((*r)));
                 ChunkRequest req = (*r);
                 boost::future<ChunkResult> *fut = new boost::future<ChunkResult>(boost::async(boost::launch::async,boost::bind(&ASMFittingStep<TPointSet, TImage>::PerformChunk,this, req)));
                 results.push_back(fut);
@@ -300,10 +294,6 @@ namespace statismo {
                 }
                 delete (*future);
             }
-
-            sampler->Delete();
-            fe->Delete();
-
 
             if (deformations.size() > 0) {
                 //std::cout << "constraints: " << deformations.size() << std::endl;

@@ -84,14 +84,15 @@ namespace itk {
         typedef typename statismo::Representer<TPointSet>::PointType PointType;
         typedef ASMNormalDirectionPointSampler<TPointSet, TImage> SelfType;
 
-        // FIXME: default constructor, initializes everything with 0/null
         ASMNormalDirectionPointSampler():
                 m_mesh(0),
                 m_locator(0),
-        m_normals(0),
-        m_numberOfPoints(0),
-        m_pointSpacing(0)
-        {
+                m_normals(0),
+                m_numberOfPoints(0),
+                m_pointSpacing(0)
+        {}
+
+        ~ASMNormalDirectionPointSampler() {
         }
 
         // FIXME: This should be either protected or private, and requires *all* fields

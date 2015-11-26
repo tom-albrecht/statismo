@@ -62,7 +62,6 @@ namespace statismo {
 
     public:
         virtual ~ASMFeatureExtractor(){}
-        //FIXME
         virtual void Delete() = 0;
         virtual FeatureExtractorType* Clone() const = 0;
         virtual FeatureExtractorType* CloneForTarget(const ActiveShapeModelType* const model, const VectorType& coefficients, const RigidTransformPointerType transform) const = 0;
