@@ -167,9 +167,7 @@ namespace statismo {
 
         class ChunkRequest {
         public:
-            ChunkRequest(std::vector<ASMProfile> *_profiles, unsigned int _dimensions) : profiles(_profiles),
-                                                                                              dimensions(
-                                                                                                      _dimensions) { }
+            ChunkRequest(std::vector<ASMProfile> *_profiles, unsigned int _dimensions) : profiles(_profiles), dimensions(_dimensions) { }
 
             unsigned int startInclusive;
             unsigned int endExclusive;
@@ -188,21 +186,16 @@ namespace statismo {
             for (std::vector<ASMProfile>::const_iterator profile = (in.profiles->begin() + index);
                  index < in.endExclusive; ++index, ++profile) {
                 ProfileResult result;
-                bool resultValid = false;
                 unsigned pointId = (*profile).GetPointId();
-                PointType profilePoint = m_model->GetStatisticalModel()->DrawSampleAtPoint(m_sourceCoefficients,
-                                                                                           pointId, false);
-                PointType transformedProfilePoint = m_model->GetRepresenter()->TransformPoint(profilePoint,
-                                                                                              m_sourceTransform);
+                PointType profilePoint = m_model->GetStatisticalModel()->DrawSampleAtPoint(m_sourceCoefficients, pointId, false);
+                PointType transformedProfilePoint = m_model->GetRepresenter()->TransformPoint(profilePoint, m_sourceTransform);
                 PointType transformedCandidatePoint;
-                float featureDistance = FindBestMatchingPointForProfile(transformedCandidatePoint, sampler,
-                                                                        fe,
+                float featureDistance = FindBestMatchingPointForProfile(transformedCandidatePoint, sampler, fe,
                                                                         transformedProfilePoint,
                                                                         (*profile).GetDistribution());
                 //std::cout << profilePoint << " -> " << transformedProfilePoint << " " << featureDistance << std::endl;
-                PointType candidatePoint = m_model->GetRepresenter()->TransformPoint(transformedCandidatePoint,
-                                                                                     m_sourceTransform, true);
-                if (featureDistance <= m_configuration.GetFeatureDistanceThreshold()) {
+                if (featureDistance >= 0 && featureDistance <= m_configuration.GetFeatureDistanceThreshold()) {
+                    PointType candidatePoint = m_model->GetRepresenter()->TransformPoint(transformedCandidatePoint, m_sourceTransform, true);
                     statismo::VectorType point(in.dimensions);
                     for (int i = 0; i < in.dimensions; ++i) {
                         point[i] = candidatePoint[i];
@@ -214,15 +207,12 @@ namespace statismo {
                         result.pointId = pointId;
                         result.candidatePoint = candidatePoint;
                         result.transformedCandidatePoint = transformedCandidatePoint;
-                        resultValid = true;
+                        out.results.push_back(result);
                     } else {
                         // shape distance is larger than threshold
                     }
                 } else {
                     // feature distance is larger than threshold
-                }
-                if (resultValid) {
-                    out.results.push_back(result);
                 }
             }
             sampler->Delete();
@@ -238,8 +228,7 @@ namespace statismo {
                                       const VectorType sourceCoefficients,
                                       const RigidTransformPointerType sourceTransform,
                                       const PreprocessedImageType *targetImage, const PointSamplerType *sampler) {
-            return new ASMFittingStep(configuration, activeShapeModel, sourceCoefficients, sourceTransform, targetImage,
-                                      sampler);
+            return new ASMFittingStep(configuration, activeShapeModel, sourceCoefficients, sourceTransform, targetImage, sampler);
         }
 
         ~ASMFittingStep() {
@@ -297,15 +286,13 @@ namespace statismo {
 
             if (deformations.size() > 0) {
                 //std::cout << "constraints: " << deformations.size() << std::endl;
-                VectorType coeffs = m_model->GetStatisticalModel()->ComputeCoefficientsForPointValues(deformations,
-                                                                                                      1e-6);
+                VectorType coeffs = m_model->GetStatisticalModel()->ComputeCoefficientsForPointValues(deformations, 1e-6);
 
                 float maxCoeff = m_configuration.GetModelCoefficientBounds();
                 for (size_t i = 0; i < coeffs.size(); ++i) {
                     coeffs(i) = std::min(maxCoeff, std::max(-maxCoeff, coeffs(i)));
                 }
-                RigidTransformPointerType adjust = m_model->GetRepresenter()->ComputeRigidTransformFromLandmarks(
-                        referencePoints, targetPoints);
+                RigidTransformPointerType adjust = m_model->GetRepresenter()->ComputeRigidTransformFromLandmarks( referencePoints, targetPoints);
                 return ASMFittingResult<RigidTransformPointerType>(true, coeffs, adjust);
 
             } else {
