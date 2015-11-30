@@ -11,8 +11,8 @@
 #include "itkASMGaussianGradientImagePreprocessor.h"
 #include "itkActiveShapeModel.h"
 #include "itkASMFitting.h"
-#include "sys/time.h"
 #include "itkMeshFileWriter.h"
+#include "itkTimeProbe.h"
 //#include "itkRigidTransformModelBuilder.h"
 
 typedef itk::Mesh<float, 3> MeshType;
@@ -41,23 +41,6 @@ statismo::VectorType fromVnlVector(const VnlVectorType& v) {
 
 }
 
-typedef int64_t msec_t;
-
-#if defined(__WIN32__)
-#include <windows.h>
-msec_t time_ms(void)
-{
-    return timeGetTime();
-}
-#else
-#include <sys/time.h>
-msec_t time_ms(void)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (msec_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-#endif
 
 int main(int argc, char *argv[]) {
 
@@ -151,7 +134,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Initialization done." << std::endl;
 
     for (int i =1; i <= 10; ++i) {
-        msec_t start = time_ms();
+        itk::TimeProbe clock;
+        clock.Start();
         std::cout << "iteration: " << i << std::endl;
         fittingStep->SetCoefficients(coeffs);
         fittingStep->SetRigidTransformation(currentTransform);
@@ -164,8 +148,9 @@ int main(int argc, char *argv[]) {
         coeffs = fromVnlVector(result->GetCoefficients());
         currentTransform = result->GetRigidTransformation();
         std::cout << "coeffs (adj)" << toVnlVector(coeffs) << std::endl;
-        msec_t end = time_ms();
-        msec_t elapsed = end - start;
+        clock.Stop();
+
+        double elapsed = clock.GetMean();
         std::cout << "Elapsed " << elapsed << std::endl;
         if (currentTransform) {
             std::cout << "Writing result of iteration " << i << std::endl;
