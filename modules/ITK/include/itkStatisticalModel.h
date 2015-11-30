@@ -119,6 +119,10 @@ class StatisticalModel : public Object {
     typedef typename statismo::StatisticalModel<T>::PointValuePairType PointValuePairType;
     typedef typename statismo::StatisticalModel<T>::PointValueListType PointValueListType;
 
+    typedef typename statismo::StatisticalModel<T>::PointCovarianceMatrixType PointCovarianceMatrixType;
+    typedef typename statismo::StatisticalModel<T>::PointValueWithCovariancePairType PointValueWithCovariancePairType;
+    typedef typename statismo::StatisticalModel<T>::PointValueWithCovarianceListType PointValueWithCovarianceListType;
+
     typedef typename statismo::StatisticalModel<T>::DomainType DomainType;
 
     void Load(RepresenterType* representer, const char* filename) {
@@ -234,6 +238,10 @@ class StatisticalModel : public Object {
         return toVnlVector(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::ComputeCoefficientsForPointValues), this->GetstatismoImplObj(), pvlist, variance)));
     }
 
+    VectorType ComputeCoefficientsForPointValuesWithCovariance(const PointValueWithCovarianceListType& pvclist) const {
+      typedef statismo::VectorType(ImplType::*functype)(const PointValueWithCovarianceListType&) const;
+      return toVnlVector(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::ComputeCoefficientsForPointValuesWithCovariance), this->m_impl, pvclist)));
+    }
 
     DatasetPointerType DatasetToSample(DatasetConstPointerType ds) const {
         return callstatismoImpl(boost::bind(&ImplType::DatasetToSample, this->GetstatismoImplObj(), ds));
