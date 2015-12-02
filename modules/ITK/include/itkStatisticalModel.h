@@ -240,7 +240,7 @@ class StatisticalModel : public Object {
 
     VectorType ComputeCoefficientsForPointValuesWithCovariance(const PointValueWithCovarianceListType& pvclist) const {
       typedef statismo::VectorType(ImplType::*functype)(const PointValueWithCovarianceListType&) const;
-      return toVnlVector(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::ComputeCoefficientsForPointValuesWithCovariance), this->m_impl, pvclist)));
+      return toVnlVector(callstatismoImpl(boost::bind(static_cast<functype>(&ImplType::ComputeCoefficientsForPointValuesWithCovariance), this->GetstatismoImplObj(), pvclist)));
     }
 
     DatasetPointerType DatasetToSample(DatasetConstPointerType ds) const {
