@@ -46,8 +46,6 @@
 
 namespace itk {
 
-    //forward declarations
-    template <typename TPointSet, typename TImage> class ASMContainedStatisticalModel;
     template <typename TPointSet, typename TImage>
     class ActiveShapeModel: public Object {
     public:
@@ -75,7 +73,7 @@ namespace itk {
         }
 
         virtual void SetstatismoImplObj(ImplType* impl) {
-            if (m_impl) {
+            if (m_impl && m_impl != impl) {
                 delete m_impl;
             }
             m_impl = impl;
@@ -85,7 +83,7 @@ namespace itk {
             return m_impl;
         }
 
-        ActiveShapeModel() : m_impl(0) {}
+        ActiveShapeModel() : m_impl(0), m_ssm(0) {}
 
         virtual ~ActiveShapeModel() {
             if (m_impl) {
@@ -94,26 +92,28 @@ namespace itk {
         }
 
         const StatisticalModelPointerType GetStatisticalModel() {
-            typedef ASMContainedStatisticalModel<TPointSet, TImage> ITKSSMConcreteType;
-            typename ITKSSMConcreteType::Pointer p = ITKSSMConcreteType::New();
-            p->SetActiveShapeModel(Pointer(this));
-            return StatisticalModelPointerType(p.GetPointer());
+            return m_ssm;
         }
 
         void SetStatisticalModel(StatisticalModelPointerType ssm) {
+            m_ssm = ssm;
+            // update implementation to contain the new (statismo) SSM.
+            // We must use a copy because otherwise we'd have two objects sharing a pointer,
+            // both wanting to delete the pointer in their own destructor.
             StatisticalModelImplType* m = ssm->GetstatismoImplObj();
-            StatisticalModelImplType* nm = StatisticalModelImplType::Create(m->GetRepresenter(), m->GetMeanVector(), m->GetOrthonormalPCABasisMatrix(), m->GetPCAVarianceVector(), m->GetNoiseVariance());
-            ImplType* newImpl = GetstatismoImplObj()->CloneWithStatisticalModel(nm);
+            StatisticalModelImplType* impl_copy = StatisticalModelImplType::Create(m->GetRepresenter(), m->GetMeanVector(), m->GetOrthonormalPCABasisMatrix(), m->GetPCAVarianceVector(), m->GetNoiseVariance());
+            ImplType* newImpl = GetstatismoImplObj()->CloneWithStatisticalModel(impl_copy);
             SetstatismoImplObj(newImpl);
-        }
-
-        const StatisticalModelImplType * GetstatismoImplOfStatisticalModel() const {
-            return m_impl->GetStatisticalModel();
         }
 
         void Load(typename ImplType::RepresenterType* representer, const char* filename) {
             try {
                 SetstatismoImplObj(ImplType::Load(representer, filename));
+                m_ssm = StatisticalModelType::New();
+                // same logic as above, we need a copy, not a shared pointer.
+                StatisticalModelImplType* m = const_cast<StatisticalModelImplType*>(m_impl->GetStatisticalModel());
+                StatisticalModelImplType* impl_copy = StatisticalModelImplType::Create(m->GetRepresenter(), m->GetMeanVector(), m->GetOrthonormalPCABasisMatrix(), m->GetPCAVarianceVector(), m->GetNoiseVariance());
+                m_ssm->SetstatismoImplObj(impl_copy);
             } catch (statismo::StatisticalModelException& s) {
                 itkExceptionMacro(<< s.what());
             }
@@ -121,44 +121,9 @@ namespace itk {
 
     private:
         ImplType* m_impl;
+        StatisticalModelPointerType m_ssm;
     };
 
-    template <typename TPointSet, typename TImage>
-    class ASMContainedStatisticalModel: public StatisticalModel<TPointSet> {
-    public:
-        /* standard ITK typedefs and macros */
-        typedef ASMContainedStatisticalModel Self;
-        typedef StatisticalModel<TPointSet> Superclass;
-        //typedef Object Superclass;
-        typedef SmartPointer <Self> Pointer;
-        typedef SmartPointer<const Self> ConstPointer;
-        itkNewMacro( Self );
-        itkTypeMacro( Self, Object);
-
-        typedef statismo::StatisticalModel<TPointSet> ImplType;
-        typedef ActiveShapeModel<TPointSet, TImage> ASMType;
-        typedef typename ASMType::Pointer ASMPointerType;
-
-        ASMContainedStatisticalModel() {}
-
-        virtual ~ASMContainedStatisticalModel() {
-        }
-
-        virtual void SetstatismoImplObj(ImplType *impl) {
-            //TODO: throw exception
-        }
-
-        virtual ImplType *GetstatismoImplObj() const {
-            return const_cast<ImplType*>(m_parent->GetstatismoImplOfStatisticalModel());
-        }
-
-        void SetActiveShapeModel(ASMPointerType parent) {
-            m_parent = parent;
-        }
-
-    private:
-        ASMPointerType m_parent;
-    };
 }
 
 #endif //STATISMO_ITKACTIVESHAPEMODEL_H

@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
     statismo::ASMPreprocessedImage<MeshType> *pimage = aModel->GetstatismoImplObj()->GetImagePreprocessor()->Preprocess(image);
 
     // just for testing
-    //aModel->SetStatisticalModel(aModel->GetStatisticalModel());
+    aModel->SetStatisticalModel(aModel->GetStatisticalModel());
 
     statismo::VectorType coeffs = statismo::VectorType::Zero(aModel->GetStatisticalModel()->GetNumberOfPrincipalComponents());
 
