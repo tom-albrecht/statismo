@@ -4,6 +4,7 @@
 #include "ASMImagePreprocessor.h"
 #include "itkDiscreteGaussianImageFilter.h"
 #include "itkBSplineInterpolateImageFunction.h"
+#include "HDF5Utils.h"
 
 namespace itk {
 

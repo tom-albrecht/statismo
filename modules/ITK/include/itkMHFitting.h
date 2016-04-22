@@ -73,10 +73,10 @@ namespace itk {
         }
 
         bool IsValid() {
-            return m_statismoResult.IsValid();
+            return true;
         }
 
-        void* GetChain() {
+        sampling::MarkovChain< statismo::MHFittingResult<RigidTransformPointerType> >* GetChain() {
             return m_statismoResult.GetChain();
         }
 
@@ -131,7 +131,9 @@ namespace itk {
 
         MHFittingStep() : m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) { }
 
-        void SetChain(void* chain) { m_chain = chain; }
+        void initChain(RigidTransformPointerType transform, statismo::VectorType coeffs) {
+          m_chain = statismo::BasicSampling<RigidTransformPointerType>::buildChain(transform,coeffs);
+        }
 
         void SetModel(ModelPointerType model) {
             m_model = model;
@@ -162,8 +164,7 @@ namespace itk {
         }
 
         void Update() {
-            ImplType *impl = ImplType::Create(m_configuration, m_model->GetstatismoImplObj(), m_chain, m_coeffs, m_transform,
-                                              m_target, m_linePoints, m_sampler);
+            ImplType *impl = ImplType::Create(m_chain);
 
             statismo::MHFittingResult<RigidTransformPointerType> result = impl->Perform();
             m_result = ResultType::New();
@@ -178,7 +179,7 @@ namespace itk {
 
     private:
         ModelPointerType m_model;
-        void* m_chain; // FIXME change type
+        sampling::MarkovChain<statismo::MHFittingResult<RigidTransformPointerType> >* m_chain; // FIXME change type
         statismo::VectorType m_coeffs;
         RigidTransformPointerType m_transform;
         ImagePointerType m_target;

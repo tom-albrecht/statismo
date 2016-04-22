@@ -2,6 +2,7 @@
 #define STATISMO_ASMIMAGEPREPROCESSOR_H
 
 #include "CommonTypes.h"
+#include "Representer.h"
 
 namespace statismo {
 

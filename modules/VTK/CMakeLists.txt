@@ -54,6 +54,7 @@ module_headertest( VTK )
 file( GLOB _VTK_hdrs
   include/*.h include/*.hxx include/*.hpp include/*.txx include/*.tpp
   )
+add_custom_target( vtk_headers SOURCES ${_VTK_hdrs})
 install( FILES ${_VTK_hdrs}
   DESTINATION ${INSTALL_INCLUDE_DIR}/statismo/VTK
   )

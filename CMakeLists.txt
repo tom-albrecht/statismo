@@ -117,6 +117,7 @@ link_directories( ${Boost_LIBRARY_DIRS} )
 add_definitions( -DBOOST_THREAD_VERSION=3 -DBOOST_FILESYSTEM_VERSION=3 )
 
 find_package( HDF5  COMPONENTS C CXX)
+message(STATUS ${HDF5_INCLUDE_DIRS})
 include_directories( ${HDF5_INCLUDE_DIRS} )
 
 if(WIN32)
@@ -145,6 +146,10 @@ if( ${VTK_SUPPORT} MATCHES "ON" )
   find_package( VTK REQUIRED )
   include( ${VTK_USE_FILE} )
 endif()
+
+set(SAMPLING_HEADERS "/home/forand00/gravis/include/Sampling-1/" CACHE PATH "Location of sampling library")
+message(STATUS ${SAMPLING_HEADERS} )
+include_directories( ${SAMPLING_HEADERS} )
 
 option( BUILD_SHARED_LIBS "Build shared libraries" ON )
 

@@ -46,7 +46,110 @@
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread/future.hpp>
 
+#include <Sampling/DistributionEvaluator.h>
+#include <Sampling/MarkovChain.h>
+#include <Sampling/Algorithm/ForwardChain.h>
+#include <Sampling/Algorithm/Metropolis.h>
+#include <Sampling/RandomGenerator.h>
+#include <Sampling/ProposalGenerator.h>
+#include <Sampling/Proposal/RandomProposal.h>
+#include <Sampling/Logger/QuietLogger.h>
+#include <Sampling/RandomGenerator.h>
+#include <Sampling/Algorithm/MetropolisHastings.h>
+
+
+
 namespace statismo {
+
+  template<typename RigidTransformPointerType>
+  class MHFittingResult {
+  public:
+      MHFittingResult() {
+      }
+
+      MHFittingResult(VectorType coefficients, RigidTransformPointerType rigidTransform) :
+              m_coefficients(coefficients),
+              m_rigidTransform(rigidTransform) { }
+
+      VectorType GetCoefficients() {
+          return m_coefficients;
+      }
+
+      RigidTransformPointerType GetRigidTransform() {
+          return m_rigidTransform;
+      }
+
+  private:
+      VectorType m_coefficients;
+      RigidTransformPointerType m_rigidTransform;
+  };
+
+
+
+
+
+
+  // Proposals
+  /*============================================================================*/
+  template<class RigidTransformPointerType>
+  class GaussianModelUpdate : public sampling::ProposalGenerator<MHFittingResult<RigidTransformPointerType> > {
+    private:
+      int sigma;
+
+    public:
+      GaussianModelUpdate( double stepSize = 0.1 ) : sigma(stepSize) {}
+
+      // ProposalGeneratorInterface interface
+    public:
+      virtual void generateProposal(MHFittingResult<RigidTransformPointerType>& proposal, const MHFittingResult<RigidTransformPointerType>& currentSample){
+        // TODO: Update model parameters with gaussian noise
+        proposal = currentSample;
+      }
+      virtual double transitionProbability(const MHFittingResult<RigidTransformPointerType>& start, const MHFittingResult<RigidTransformPointerType>& end){
+        return 0.0;
+      }
+  };
+
+
+  // Evaluators
+  /*============================================================================*/
+  template<class RigidTransformPointerType>
+  class PointEvaluator : public sampling::DistributionEvaluator<MHFittingResult<RigidTransformPointerType> > {
+
+      // DistributionEvaluatorInterface interface
+    public:
+      virtual double evalSample(const MHFittingResult<RigidTransformPointerType>& currentSample){
+        return 0.0;
+      }
+  };
+
+
+    template<class RigidTransformPointerType>
+    class BasicSampling {
+      public:
+        static sampling::MarkovChain<MHFittingResult<RigidTransformPointerType> >* buildChain(RigidTransformPointerType transform,statismo::VectorType coeffs) {
+          // basics
+          sampling::RandomGenerator* rGen = new sampling::RandomGenerator(42);
+          MHFittingResult<RigidTransformPointerType> init = MHFittingResult<RigidTransformPointerType>(coeffs,transform);
+
+          // Proposals
+          GaussianModelUpdate<RigidTransformPointerType>* poseProposalRough = new GaussianModelUpdate<RigidTransformPointerType>(0.1);
+          GaussianModelUpdate<RigidTransformPointerType>* poseProposalFine = new GaussianModelUpdate<RigidTransformPointerType>(0.01);
+          std::vector< typename sampling::RandomProposal< MHFittingResult<RigidTransformPointerType> >::GeneratorPair> poseProposalsVector(2);
+          poseProposalsVector[0] = std::pair<sampling::ProposalGenerator<MHFittingResult<RigidTransformPointerType> >*,double>(poseProposalRough,0.3);
+          poseProposalsVector[1] = std::pair<sampling::ProposalGenerator<MHFittingResult<RigidTransformPointerType> >*,double>(poseProposalFine,0.7);
+          sampling::RandomProposal<MHFittingResult<RigidTransformPointerType> >* mainProposal = new sampling::RandomProposal<MHFittingResult<RigidTransformPointerType> >(poseProposalsVector,rGen);
+
+          // Evaluators
+          PointEvaluator<RigidTransformPointerType>* mainEval = new PointEvaluator<RigidTransformPointerType>();
+
+
+
+
+          sampling::MarkovChain<MHFittingResult<RigidTransformPointerType> >* chain =  new sampling::MetropolisHastings<MHFittingResult<RigidTransformPointerType> >(mainProposal, mainEval, new sampling::QuietLogger<MHFittingResult<RigidTransformPointerType> >(), init, rGen );
+          return chain;
+        }
+    };
 
 
 
@@ -54,7 +157,7 @@ namespace statismo {
     private:
 
     public:
-        MHFittingConfiguration(const ASMFittingConfiguration& asmFittingConfiguration) : m_asmFittingConfiguration(asmFittingConfiguration) { };
+        MHFittingConfiguration(const ASMFittingConfiguration& asmFittingConfiguration) : m_asmFittingConfiguration(asmFittingConfiguration) { }
         const ASMFittingConfiguration& GetAsmFittingconfiguration() const {return m_asmFittingConfiguration; }
 
     private:
@@ -62,41 +165,6 @@ namespace statismo {
     };
 
 
-
-
-
-    template<typename RigidTransformPointerType>
-    class MHFittingResult {
-    public:
-        MHFittingResult() : m_isValid(false) {
-        }
-
-        MHFittingResult(bool isValid, void* chain, VectorType coefficients, RigidTransformPointerType rigidTransform) :
-                m_isValid(isValid),
-                m_chain(chain),
-                m_coefficients(coefficients),
-                m_rigidTransform(rigidTransform) { }
-
-        bool IsValid() {
-            return m_isValid;
-        }
-
-        void* GetChain() { return m_chain; }
-
-        VectorType GetCoefficients() {
-            return m_coefficients;
-        }
-
-        RigidTransformPointerType GetRigidTransform() {
-            return m_rigidTransform;
-        }
-
-    private:
-        bool m_isValid;
-        void* m_chain;
-        VectorType m_coefficients;
-        RigidTransformPointerType m_rigidTransform;
-    };
 
 
 
@@ -112,18 +180,9 @@ namespace statismo {
         typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
         typedef  ASMFittingStep<TPointSet, TImage> ASMFittingStepType;
 
-        // FIXME change void*
-        MHFittingStep(const MHFittingConfiguration &configuration, const ActiveShapeModelType *activeShapeModel,
-                      const void* chain, const VectorType sourceCoefficients, const RigidTransformPointerType sourceTransform,
-                       const PreprocessedImageType *targetImage, const std::vector<PointType> linePoints, const PointSamplerType *sampler)
+        MHFittingStep(sampling::MarkovChain<MHFittingResult<RigidTransformPointerType> >* chain)
                 :
-                m_configuration(configuration),
-                m_model(activeShapeModel),
-                m_sourceCoefficients(sourceCoefficients),
-                m_sourceTransform(sourceTransform),
-                m_target(targetImage),
-                m_linePoints(linePoints),
-                m_sampler(sampler) { }
+                m_chain(chain) { }
 
     private:
         class ProfileResult {
@@ -137,15 +196,8 @@ namespace statismo {
     public:
 
 
-        static MHFittingStep *Create(const MHFittingConfiguration &configuration,
-                                      const ActiveShapeModelType *activeShapeModel,
-                                      const void* chain,
-                                      const VectorType sourceCoefficients,
-                                      const RigidTransformPointerType sourceTransform,
-                                      const PreprocessedImageType *targetImage,
-                                      const std::vector<PointType> linePoints,
-                                     const PointSamplerType *sampler) {
-            return new MHFittingStep(configuration, activeShapeModel, chain, sourceCoefficients, sourceTransform, targetImage, linePoints, sampler);
+        static MHFittingStep *Create(sampling::MarkovChain<MHFittingResult<RigidTransformPointerType> >* chain) {
+            return new MHFittingStep( chain);
         }
 
         ~MHFittingStep() {
@@ -153,23 +205,20 @@ namespace statismo {
 
         MHFittingResult<RigidTransformPointerType> Perform() const {
 
-            // runs a markov chain and returns only the accepted proposals
 
-            ASMFittingStepType* asmFittingStep = ASMFittingStepType::Create(m_configuration.GetAsmFittingconfiguration(), m_model, m_sourceCoefficients, m_sourceTransform, m_target, m_sampler);
-            ASMFittingResult<RigidTransformPointerType> result = asmFittingStep->Perform();
-            MHFittingResult<RigidTransformPointerType> mhResult(true, m_chain, result.GetCoefficients(), result.GetRigidTransform());
-            return mhResult;
+          //          ASMFittingStepType* asmFittingStep = ASMFittingStepType::Create(m_configuration.GetAsmFittingconfiguration(), m_model, m_sourceCoefficients, m_sourceTransform, m_target, m_sampler);
+          //          ASMFittingResult<RigidTransformPointerType> result = asmFittingStep->Perform();
+
+
+          // runs a markov chain and returns only the accepted proposals
+          MHFittingResult<RigidTransformPointerType> params;//(m_sourceTransform,m_sourceCoefficients);
+          m_chain->next(params);
+          MHFittingResult<RigidTransformPointerType> mhResult(params.GetCoefficients(), params.GetRigidTransform());
+          return mhResult;
         }
 
     private:
-        const ActiveShapeModelType *m_model;
-        void* m_chain;
-        const VectorType m_sourceCoefficients;
-        const RigidTransformPointerType m_sourceTransform;
-        const PreprocessedImageType *m_target;
-        std::vector<PointType> m_linePoints;
-        const PointSamplerType *m_sampler;
-        MHFittingConfiguration m_configuration;
+        sampling::MarkovChain<MHFittingResult<RigidTransformPointerType> >* m_chain;
     };
 }
 

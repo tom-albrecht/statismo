@@ -17,6 +17,7 @@
 #include "itkTimeProbe.h"
 //#include "itkRigidTransformModelBuilder.h"
 
+
 typedef itk::Mesh<float, 3> MeshType;
 typedef itk::Image<float, 3> ImageType;
 typedef itk::ActiveShapeModel<MeshType, ImageType> ActiveShapeModelType;
@@ -42,7 +43,6 @@ statismo::VectorType fromVnlVector(const VnlVectorType& v) {
 
 }
 
-
 int main(int argc, char *argv[]) {
 
 
@@ -63,6 +63,8 @@ int main(int argc, char *argv[]) {
 
     statismo::ASMFittingConfiguration asmFitConfig(3,5,3);
     statismo::MHFittingConfiguration mhFitConfig(asmFitConfig);
+
+
 
 //    std::vector<PointType> reference;
 //    std::vector<PointType> target;
@@ -121,19 +123,18 @@ int main(int argc, char *argv[]) {
     fittingStep->SetSampler(FittingStepType::SamplerPointerType(fitSampler.GetPointer()));
     fittingStep->SetConfiguration(mhFitConfig);
 
-    void* chain = 0; // FIXME to be replaced with sandros class
-    fittingStep->SetChain(chain);
-    std::cout << "Initialization done." << std::endl;
 
 
     std::vector<PointType> linePoints;
 
+    fittingStep->initChain(currentTransform,coeffs);
+    std::cout << "Initialization done." << std::endl;
+
+
+
     for (int i =1; i <= 10; ++i) {
 
         std::cout << "iteration: " << i << std::endl;
-        fittingStep->SetCoefficients(coeffs);
-        fittingStep->SetRigidTransformation(currentTransform);
-        fittingStep->SetLineConstraints(linePoints);
         fittingStep->Update();
         FittingResultType::Pointer result = fittingStep->GetOutput();
         if (!result->IsValid()) {
