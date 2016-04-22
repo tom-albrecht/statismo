@@ -132,7 +132,8 @@ namespace itk {
         MHFittingStep() : m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) { }
 
         void initChain(RigidTransformPointerType transform, statismo::VectorType coeffs) {
-          m_chain = statismo::BasicSampling<RigidTransformPointerType>::buildChain(transform,coeffs);
+          // TODO need pass trough all parameters
+          //m_chain = statismo::mcmc<TPointSet,TImage>::BasicSampling::buildChain(transform,coeffs);
         }
 
         void SetModel(ModelPointerType model) {
