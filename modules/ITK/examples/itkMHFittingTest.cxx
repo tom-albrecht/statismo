@@ -11,6 +11,8 @@
 #include "itkASMGaussianGradientImagePreprocessor.h"
 #include "itkActiveShapeModel.h"
 #include "itkASMFitting.h"
+#include "MHFitting.h"
+#include "itkMHFitting.h"
 #include "itkMeshFileWriter.h"
 #include "itkTimeProbe.h"
 //#include "itkRigidTransformModelBuilder.h"
@@ -26,9 +28,8 @@ typedef RepresenterType::PointType PointType;
 typedef itk::StatisticalModel<MeshType> StatisticalModelType;
 typedef itk::Euler3DTransform< float > TransformType;
 
-typedef itk::ASMFitting<MeshType, ImageType> FittingType;
-typedef itk::ASMFittingStep<MeshType, ImageType> FittingStepType;
-typedef itk::ASMFittingResult<MeshType, ImageType> FittingResultType;
+typedef itk::MHFittingStep<MeshType, ImageType> FittingStepType;
+typedef itk::MHFittingResult<MeshType, ImageType> FittingResultType;
 
 
 // FIXME: these conversions have to go.
@@ -59,14 +60,12 @@ int main(int argc, char *argv[]) {
     fitSampler->SetNumberOfPoints(25);
     fitSampler->SetPointSpacing(1);
 
-    statismo::ASMFittingConfiguration fitConfig(3,5,3);
 
-    ImageReaderType::Pointer reader = ImageReaderType::New();
-    //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
-    reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
+    statismo::ASMFittingConfiguration asmFitConfig(3,5,3);
+    statismo::MHFittingConfiguration mhFitConfig(asmFitConfig);
 
-    std::vector<PointType> reference;
-    std::vector<PointType> target;
+//    std::vector<PointType> reference;
+//    std::vector<PointType> target;
 
 //    PointType ra,rb,rc,rd,re,rf,ta,tb,tc,td,te,tf;
 //
@@ -103,44 +102,38 @@ int main(int argc, char *argv[]) {
     RigidTransformType::Pointer currentTransform(versorTransform.GetPointer());
     currentTransform->SetIdentity();
 
+    // read and preprocess image
+    ImageReaderType::Pointer reader = ImageReaderType::New();
+    //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
+    reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
     reader->Update();
     ImageType::Pointer image = reader->GetOutput();
     statismo::ASMPreprocessedImage<MeshType> *pimage = aModel->GetstatismoImplObj()->GetImagePreprocessor()->Preprocess(image);
 
     // just for testing
     aModel->SetStatisticalModel(aModel->GetStatisticalModel());
-
     statismo::VectorType coeffs = statismo::VectorType::Zero(aModel->GetStatisticalModel()->GetNumberOfPrincipalComponents());
-
-
-
-//    //FIXME: To be implemented
-//    FittingType::Pointer fitting = FittingType::New();
-//    fitting->SetModel(aModel);
-//    fitting->SetTarget(pimage);
-//    fitting->SetSampler(FittingStepType::SamplerPointerType(fitSampler.GetPointer()));
-//    fitting->SetConfiguration(fitConfig);
-//    fitting->SetInitialRigidTransformation(RigidTransformType::Pointer(transform.GetPointer()));
-//    fitting->SetInitialCoefficients(coeffs);
-//    fitting->SetNumberOfIterations(25);
-//    fitting->Update();
-
 
 
     FittingStepType::Pointer fittingStep = FittingStepType::New();
     fittingStep->SetModel(aModel);
     fittingStep->SetTarget(pimage);
     fittingStep->SetSampler(FittingStepType::SamplerPointerType(fitSampler.GetPointer()));
-    fittingStep->SetConfiguration(fitConfig);
+    fittingStep->SetConfiguration(mhFitConfig);
 
+    void* chain = 0; // FIXME to be replaced with sandros class
+    fittingStep->SetChain(chain);
     std::cout << "Initialization done." << std::endl;
 
+
+    std::vector<PointType> linePoints;
+
     for (int i =1; i <= 10; ++i) {
-        itk::TimeProbe clock;
-        clock.Start();
+
         std::cout << "iteration: " << i << std::endl;
         fittingStep->SetCoefficients(coeffs);
         fittingStep->SetRigidTransformation(currentTransform);
+        fittingStep->SetLineConstraints(linePoints);
         fittingStep->Update();
         FittingResultType::Pointer result = fittingStep->GetOutput();
         if (!result->IsValid()) {
@@ -150,10 +143,7 @@ int main(int argc, char *argv[]) {
         coeffs = fromVnlVector(result->GetCoefficients());
         currentTransform = result->GetRigidTransformation();
         std::cout << "coeffs (adj)" << toVnlVector(coeffs) << std::endl;
-        clock.Stop();
 
-        double elapsed = clock.GetMean();
-        std::cout << "Elapsed " << elapsed << std::endl;
         if (currentTransform) {
             std::cout << "Writing result of iteration " << i << std::endl;
             itk::MeshFileWriter<MeshType>::Pointer writer = itk::MeshFileWriter<MeshType>::New();
