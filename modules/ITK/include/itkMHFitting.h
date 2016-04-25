@@ -45,6 +45,7 @@
 #include "MHFitting.h"
 #include "itkActiveShapeModel.h"
 #include "itkASMPointSampler.h"
+#include <vector>
 
 namespace itk {
 
@@ -129,42 +130,72 @@ namespace itk {
         typedef statismo::MHFittingStep<TPointSet, TImage> ImplType;
         typedef MHFittingResult<TPointSet, TImage> ResultType;
 
-        MHFittingStep() : m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) { }
+        MHFittingStep() : /* m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) */ m_chain(0) { }
 
-        void initChain(RigidTransformPointerType transform, statismo::VectorType coeffs) {
-          // TODO need pass trough all parameters
-          //m_chain = statismo::mcmc<TPointSet,TImage>::BasicSampling::buildChain(transform,coeffs);
-        }
-
-        void SetModel(ModelPointerType model) {
+        void init(ImagePointerType target,
+                  std::vector<PointType> targetPoints,
+                  ModelPointerType model,
+                  SamplerPointerType sampler,
+                  ConfigurationType configuration,
+                  RigidTransformPointerType transform,
+                  statismo::VectorType coeffs)
+        {
             m_model = model;
+//            m_target = target;
+//            m_sampler = sampler;
+//            m_transform = transform;
+//            m_coeffs = coeffs;
+//            m_configuration = configuration;
+
+
+
+            // TODO need pass trough all parameters
+//            vector<PointType,int> targetPointsWithIndex,
+//            ActiveShapeModelType* asmodel,
+//            RigidTransformPointerType transform,
+//            statismo::VectorType coeffs
+
+            // FIXME
+            std::vector<std::pair<PointType,int> > targetPointsWithIndex;
+
+            m_chain = statismo::mcmc<TPointSet,TImage>::BasicSampling::buildChain(targetPointsWithIndex, model->GetstatismoImplObj(), transform,coeffs);
         }
 
-        void SetCoefficients(statismo::VectorType coeffs) {
-            m_coeffs = coeffs;
-        }
 
-        void SetLineConstraints(const std::vector<PointType>& linePoints) {
-            m_linePoints = linePoints;
-        }
+//        void SetSampler(SamplerPointerType sampler) {
+//            m_sampler = sampler;
+//        }
 
-        void SetRigidTransformation(RigidTransformPointerType transform) {
-            m_transform = transform;
-        }
 
-        void SetTarget(ImagePointerType target) {
-            m_target = target;
-        }
+//        void SetModel(ModelPointerType model) {
+//            m_model = model;
+//        }
 
-        void SetSampler(SamplerPointerType sampler) {
-            m_sampler = sampler;
-        }
+//        void SetCoefficients(statismo::VectorType coeffs) {
+//            m_coeffs = coeffs;
+//        }
 
-        void SetConfiguration(const ConfigurationType &configuration) {
-            m_configuration = configuration;
-        }
+//        void SetLineConstraints(const std::vector<PointType>& linePoints) {
+//            m_linePoints = linePoints;
+//        }
 
-        void Update() {
+//        void SetRigidTransformation(RigidTransformPointerType transform) {
+//            m_transform = transform;
+//        }
+//
+//        void SetTarget(ImagePointerType target) {
+//            m_target = target;
+//        }
+//
+//        void SetSampler(SamplerPointerType sampler) {
+//            m_sampler = sampler;
+//        }
+//
+//        void SetConfiguration(const ConfigurationType &configuration) {
+//            m_configuration = configuration;
+//        }
+
+        void NextSample() {
             ImplType *impl = ImplType::Create(m_chain);
 
             statismo::MHFittingResult<RigidTransformPointerType> result = impl->Perform();
@@ -181,12 +212,12 @@ namespace itk {
     private:
         ModelPointerType m_model;
         sampling::MarkovChain<statismo::MHFittingResult<RigidTransformPointerType> >* m_chain; // FIXME change type
-        statismo::VectorType m_coeffs;
-        RigidTransformPointerType m_transform;
-        ImagePointerType m_target;
-        SamplerPointerType m_sampler;
-        ConfigurationType m_configuration;
-        std::vector<PointType> m_linePoints;
+ //       statismo::VectorType m_coeffs;
+ //       RigidTransformPointerType m_transform;
+  //      ImagePointerType m_target;
+   //     SamplerPointerType m_sampler;
+    //    ConfigurationType m_configuration;
+    //    std::vector<PointType> m_linePoints;
         typename ResultType::Pointer m_result;
     };
 

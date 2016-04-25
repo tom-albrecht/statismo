@@ -51,7 +51,9 @@ int main(int argc, char *argv[]) {
     statismo::ASMFeatureExtractorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMNormalDirectionFeatureExtractorFactory<MeshType, ImageType>::GetInstance());
     statismo::ASMImagePreprocessorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMGaussianGradientImagePreprocessorFactory<MeshType, ImageType>::GetInstance());
 
-    std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
+//    std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
+    std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
+
     ActiveShapeModelType::Pointer aModel = ActiveShapeModelType::New();
     RepresenterType::Pointer representer = RepresenterType::New();
     aModel->Load(representer,  modelname.c_str());
@@ -66,40 +68,10 @@ int main(int argc, char *argv[]) {
 
 
 
-//    std::vector<PointType> reference;
-//    std::vector<PointType> target;
-
-//    PointType ra,rb,rc,rd,re,rf,ta,tb,tc,td,te,tf;
-//
-//    ra[0] = 38.3603515625; ra[1] = -61.9775390625; ra[2] = 255.62380981445312; // 38.3603515625,-61.9775390625,255.62380981445312
-//    rb[0] = 36.21720504760742; rb[1] = -73.27617645263672; rb[2] = 236.9056396484375; // 36.21720504760742,-73.27617645263672,236.9056396484375
-//    rc[0] = 32.97368621826172; rc[1] = -60.5927734375; rc[2] = 217.5156707763672; // 32.97368621826172,-60.5927734375,217.5156707763672
-//    rd[0] =  35.740814208984375; rd[1] = -46.073516845703125; rd[2] = 232.21583557128906; // 35.740814208984375,-46.073516845703125,232.21583557128906
-//    re[0] =  41.47886657714844; re[1] = -60.76667404174805; re[2] = 232.4999237060547; // 41.47886657714844,-60.76667404174805,232.4999237060547
-//    rf[0] = 29.496631622314453; rf[1] = -61.79425811767578; rf[2] = 235.50245666503906; // 29.496631622314453,-61.79425811767578,235.50245666503906
-//
-//    reference.push_back(ra);
-//    reference.push_back(rb);
-//    reference.push_back(rc);
-//    reference.push_back(rd);
-//    reference.push_back(re);
-//    reference.push_back(rf);
-//
-//    ta[0] = (float)37.84376907348633; ta[1] = (float)-92.68473052978516; ta[2] = (float)-340.8616638183594; //37.84376907348633,-92.68473052978516,-340.8616638183594
-//    tb[0] = (float)37.16470718383789; tb[1] = (float)-104.13507843017578; tb[2] = (float)-354.39959716796875; //37.16470718383789,-104.13507843017578,-354.39959716796875
-//    tc[0] = (float)36.72918701171875; tc[1] = (float)-94.02742004394531; tc[2] = (float)-366.81243896484375; //36.72918701171875,-94.02742004394531,-366.81243896484375
-//    td[0] = (float)38.515804290771484; td[1] = (float)-78.56915283203125; td[2] = (float)-355.5799255371094; //38.515804290771484,-78.56915283203125,-355.5799255371094
-//    te[0] = (float)43.56576156616211; te[1] = (float)-93.40294647216797; te[2] = (float)-355.55865478515625; //43.56576156616211,-93.40294647216797,-355.55865478515625
-//    tf[0] = (float)31.05061912536621; tf[1] = (float)-93.81318664550781; tf[2] = (float)-356.4269714355469; //31.05061912536621,-93.81318664550781,-356.4269714355469
-//
-//    target.push_back(ta);
-//    target.push_back(tb);
-//    target.push_back(tc);
-//    target.push_back(td);
-//    target.push_back(te);
-//    target.push_back(tf);
-
-    // Hack! There should be a better way to set the initial transform.
+    // You should use here
+    // > representer->ComputeRigidTransformFromLandmarks
+    // if you have landmarks
+    // Currently I only want an identity transform
     itk::VersorRigid3DTransform<float>::Pointer versorTransform = itk::VersorRigid3DTransform<float>::New();
     RigidTransformType::Pointer currentTransform(versorTransform.GetPointer());
     currentTransform->SetIdentity();
@@ -107,7 +79,9 @@ int main(int argc, char *argv[]) {
     // read and preprocess image
     ImageReaderType::Pointer reader = ImageReaderType::New();
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
-    reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
+  //  reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
+    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
+
     reader->Update();
     ImageType::Pointer image = reader->GetOutput();
     statismo::ASMPreprocessedImage<MeshType> *pimage = aModel->GetstatismoImplObj()->GetImagePreprocessor()->Preprocess(image);
@@ -117,25 +91,23 @@ int main(int argc, char *argv[]) {
     statismo::VectorType coeffs = statismo::VectorType::Zero(aModel->GetStatisticalModel()->GetNumberOfPrincipalComponents());
 
 
-    FittingStepType::Pointer fittingStep = FittingStepType::New();
-    fittingStep->SetModel(aModel);
-    fittingStep->SetTarget(pimage);
-    fittingStep->SetSampler(FittingStepType::SamplerPointerType(fitSampler.GetPointer()));
-    fittingStep->SetConfiguration(mhFitConfig);
-
-
-
+    // a vector with all the point constraints that should be used within the fitting
     std::vector<PointType> linePoints;
 
-    fittingStep->initChain(currentTransform,coeffs);
+
+    // very ITK unlike, we use a init method instead of setting all fields manually.
+    // This avoids 99% of all core dumps :-)
+    FittingStepType::Pointer fittingStep = FittingStepType::New();
+    fittingStep->init(pimage, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, coeffs);
+
     std::cout << "Initialization done." << std::endl;
 
 
-
-    for (int i =1; i <= 10; ++i) {
+    for (int i =1; i <= 1000; ++i) {
 
         std::cout << "iteration: " << i << std::endl;
-        fittingStep->Update();
+
+        fittingStep->NextSample();
         FittingResultType::Pointer result = fittingStep->GetOutput();
         if (!result->IsValid()) {
             std::cout << "invalid result, aborting " <<std::endl;

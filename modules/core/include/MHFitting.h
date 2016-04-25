@@ -171,7 +171,7 @@ namespace statismo {
           }
       };
 
-      class Gaussian3DPositionDifferenceEvaluator : public DistributionEvaluator<PointType>
+      class Gaussian3DPositionDifferenceEvaluator : public PositionEvaluator
       {
         public:
           Gaussian3DPositionDifferenceEvaluator( double sigma = 1.0) {
@@ -225,7 +225,7 @@ namespace statismo {
           }
         private:
           vector< pair<PointType, int> > pointsWithIndex;
-          StatisticalModelType* smodel;
+          const StatisticalModelType* smodel;
           PositionEvaluator* eval;
 
       };
@@ -240,7 +240,7 @@ namespace statismo {
       class BasicSampling {
         public:
           static MarkovChain<ChainSampleType >* buildChain(
-              vector<PointType,int> targetPointsWithIndex,
+              vector<std::pair<PointType,int> > targetPointsWithIndex,
               ActiveShapeModelType* asmodel,
               RigidTransformPointerType transform,
               statismo::VectorType coeffs) {
