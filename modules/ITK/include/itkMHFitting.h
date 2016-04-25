@@ -155,10 +155,7 @@ namespace itk {
 //            RigidTransformPointerType transform,
 //            statismo::VectorType coeffs
 
-            // FIXME
-            std::vector<std::pair<PointType,int> > targetPointsWithIndex;
-
-            m_chain = statismo::mcmc<TPointSet,TImage>::BasicSampling::buildChain(targetPointsWithIndex, model->GetstatismoImplObj(), transform,coeffs);
+            m_chain = statismo::mcmc<TPointSet,TImage>::BasicSampling::buildChain(targetPoints, model->GetstatismoImplObj(), transform,coeffs);
         }
 
 

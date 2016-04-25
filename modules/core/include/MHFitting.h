@@ -74,12 +74,23 @@ namespace statismo {
         m_coefficients(coefficients),
         m_rigidTransform(rigidTransform) { }
 
-      VectorType GetCoefficients() {
+      VectorType GetCoefficients() const {
         return m_coefficients;
       }
 
-      RigidTransformPointerType GetRigidTransform() {
+      RigidTransformPointerType GetRigidTransform() const {
         return m_rigidTransform;
+      }
+
+      int size() {
+        // TODO: if this is really used we should change to a different vectorized representation of all parameters
+        return m_coefficients.rows() * m_coefficients.cols() + m_rigidTransform->ParametersDimension;
+      }
+
+      float& operator[]( int i ) {
+        // TODO: if this is really used we should change to a different vectorized representation of all parameters
+        throw new std::runtime_error("operator[] not implemented for MHFittingResult");
+        return m_coefficients(0,0);
       }
 
     private:
@@ -96,6 +107,7 @@ namespace statismo {
       typedef ASMPointSampler<TPointSet, TImage> PointSamplerType;
       typedef typename Representer<TPointSet>::PointType PointType;
       typedef StatisticalModel<TPointSet> StatisticalModelType;
+      typedef typename StatisticalModelType::RepresenterType RepresenterType;
       typedef typename StatisticalModelType::DatasetPointerType SampleType;
       typedef typename StatisticalModelType::ValueType ValueType;
       typedef ASMFeatureExtractor<TPointSet, TImage> FeatureExtractorType;
@@ -173,8 +185,10 @@ namespace statismo {
 
       class Gaussian3DPositionDifferenceEvaluator : public PositionEvaluator
       {
+        private:
+          const RepresenterType* rep;
         public:
-          Gaussian3DPositionDifferenceEvaluator( double sigma = 1.0) {
+          Gaussian3DPositionDifferenceEvaluator( const RepresenterType* representer, double sigma = 1.0) : rep(representer){
             sigma = sigma;
             dNormalizer = -1.5*log( 2*M_PI ) - 3.0 * log( sigma );
           }
@@ -182,13 +196,13 @@ namespace statismo {
 
           double evalSample( PointType const& diff )
           {
-            double dVal = diff.norm2; // TODO check if PointType has this function norm2
+            double dVal = rep->PointToVector(diff).squaredNorm(); // TODO check if PointType has this function norm2
             return -dVal/(2.0*sigma*sigma) + dNormalizer;
           }
 
           void evalGradient( PointType& grad, PointType const& diff )
           {
-            grad = -diff / (sigma * sigma);
+            //grad = diff*(-1) / (sigma * sigma);
           }
 
           virtual bool isSeparable() const
@@ -204,27 +218,27 @@ namespace statismo {
 
       class PointEvaluator : public DistributionEvaluator< ChainSampleType > {
         public:
-          PointEvaluator( vector< pair<PointType, int> > targetPointsWithModelIndices, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
-            pointsWithIndex(targetPointsWithModelIndices),
+          PointEvaluator( vector< PointType > targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
+            targetPoints(targetPoints),
             smodel(asmodel->GetStatisticalModel()),
             eval(evaluator)
           {}
 
           // DistributionEvaluatorInterface interface
         public:
-          virtual double evalSample(const ChainSampleType& currentSample){
+          virtual double evalSample(const ChainSampleType& currentSample) {
             double val = 0.0;
 
             // TODO to draw full sample only for landmarks is inefficient
             SampleType sample = smodel->DrawSample(currentSample.GetCoefficients());
-            for( int i = 0; i < pointsWithIndex.size(); ++i) {
-              PointType genPoint = smodel->GetRepresenter()->PointSampleFromSample(sample,pointsWithIndex(i).second);
-              val += eval->evalSample(genPoint-pointsWithIndex[i].first); // TODO: check weather we can subtract two points from each others and get a point back
+            for( int i = 0; i < targetPoints.size(); ++i) {
+              PointType closestPoint = targetPoints[i]; // TODO: implement findClosestPoint
+              val += eval->evalSample(closestPoint-targetPoints[i]);
             }
             return 0.0;
           }
         private:
-          vector< pair<PointType, int> > pointsWithIndex;
+          vector< PointType > targetPoints;
           const StatisticalModelType* smodel;
           PositionEvaluator* eval;
 
@@ -240,7 +254,7 @@ namespace statismo {
       class BasicSampling {
         public:
           static MarkovChain<ChainSampleType >* buildChain(
-              vector<std::pair<PointType,int> > targetPointsWithIndex,
+              vector<PointType> targetPoints,
               ActiveShapeModelType* asmodel,
               RigidTransformPointerType transform,
               statismo::VectorType coeffs) {
@@ -258,11 +272,11 @@ namespace statismo {
             RandomProposal<ChainSampleType >* mainProposal = new RandomProposal<ChainSampleType >(poseProposalsVector,rGen);
 
             // Evaluators // TODO: integrate ASM evaluator
-            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(0.1);
-            PointEvaluator* pointEval = new PointEvaluator(targetPointsWithIndex,asmodel,diffEval);
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.1);
+            PointEvaluator* pointEval = new PointEvaluator(targetPoints,asmodel,diffEval);
 
-            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(0.5);
-            PointEvaluator* widePointEval = new PointEvaluator(targetPointsWithIndex,asmodel,wideDiffEval);
+            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.5);
+            PointEvaluator* widePointEval = new PointEvaluator(targetPoints,asmodel,wideDiffEval);
 
             std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList(2);
             evaluatorList[0] = pointEval;
