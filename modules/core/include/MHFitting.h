@@ -122,14 +122,16 @@ namespace statismo {
       class GaussianModelUpdate : public ProposalGenerator<ChainSampleType > {
         private:
           int sigma;
+          RandomGenerator* rgen;
 
         public:
-          GaussianModelUpdate( double stepSize = 0.1 ) : sigma(stepSize) {}
+          GaussianModelUpdate( double stepSize, RandomGenerator* rgen ) : sigma(stepSize), rgen(rgen) {}
 
           // ProposalGeneratorInterface interface
         public:
           virtual void generateProposal(ChainSampleType& proposal, const ChainSampleType& currentSample){
             VectorType shapeParams = currentSample.GetCoefficients();
+            rgen->normalDbl();
 
             // TODO: Update model parameters with gaussian noise
             proposal = ChainSampleType(shapeParams,currentSample.GetRigidTransform());
@@ -264,8 +266,8 @@ namespace statismo {
             ChainSampleType init = ChainSampleType(coeffs,transform);
 
             // Proposals // TODO: add ASMProposal
-            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0.1);
-            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.01);
+            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0.1,rGen);
+            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.01,rGen);
             vector< typename RandomProposal< ChainSampleType >::GeneratorPair> poseProposalsVector(2);
             poseProposalsVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.3);
             poseProposalsVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.7);
