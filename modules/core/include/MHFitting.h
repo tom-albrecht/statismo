@@ -57,6 +57,7 @@
 #include <Sampling/Logger/QuietLogger.h>
 #include <Sampling/RandomGenerator.h>
 #include <Sampling/Algorithm/MetropolisHastings.h>
+#include <Sampling/Logger/BestMatchLogger.h>
 
 
 
@@ -128,7 +129,7 @@ namespace statismo {
       /*============================================================================*/
       class GaussianModelUpdate : public ProposalGenerator<ChainSampleType > {
         private:
-          int sigma;
+          double sigma;
           RandomGenerator* rgen;
 
         public:
@@ -138,10 +139,13 @@ namespace statismo {
         public:
           virtual void generateProposal(ChainSampleType& proposal, const ChainSampleType& currentSample){
             VectorType shapeParams = currentSample.GetCoefficients();
-            rgen->normalDbl();
 
+              VectorType newParams(shapeParams.size());
+            for (unsigned i = 0; i < shapeParams.size(); ++i) {
+                newParams[i] = shapeParams[i] + rgen->normalDbl() * sigma;
+            }
 
-            proposal = ChainSampleType(shapeParams,currentSample.GetRigidTransform());
+            proposal = ChainSampleType(newParams,currentSample.GetRigidTransform());
           }
           virtual double transitionProbability(const ChainSampleType& start, const ChainSampleType& end){
             return 0.0;
@@ -230,10 +234,10 @@ namespace statismo {
           typedef ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
 
         public:
-          PointEvaluator( const Representer<T>* representer, const ClosestPointType& closestPoint, vector< PointType > targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
-            targetPoints(targetPoints),
-            smodel(asmodel->GetStatisticalModel()),
-            eval(evaluator),
+          PointEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
+            m_targetPoints(targetPoints),
+            m_smodel(asmodel->GetStatisticalModel()),
+            m_eval(evaluator),
             m_closestPoint(closestPoint)
 
           {}
@@ -244,18 +248,21 @@ namespace statismo {
             double distance = 0.0;
 
             // TODO to draw full sample only for landmarks is inefficient
-            SampleType sample = smodel->DrawSample(currentSample.GetCoefficients());
-            for( int i = 0; i < targetPoints.size(); ++i) {
-              PointType closestPtOnSample =  m_closestPoint.findClosestPoint(sample, targetPoints[i]);
-              distance += eval->evalSample(closestPtOnSample-targetPoints[i]);
+             typename RepresenterType::DatasetPointerType  sample =m_smodel->DrawSample(currentSample.GetCoefficients());
+
+            for( int i = 0; i < m_targetPoints.size(); ++i) {
+
+              PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]);
+              distance += m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
             }
             return distance * (-1.0);
+
           }
         private:
-          vector< PointType > targetPoints;
-          const StatisticalModelType* smodel;
-          PositionEvaluator* eval;
-          const ClosestPointType& m_closestPoint;
+          const vector< PointType > m_targetPoints;
+          const StatisticalModelType* m_smodel;
+          PositionEvaluator* m_eval;
+          const ClosestPointType* m_closestPoint;
 
       };
 
@@ -271,7 +278,7 @@ namespace statismo {
         public:
           static MarkovChain<ChainSampleType >* buildChain(
                   const Representer<T>* representer,
-                  const ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>& closestPoint,
+                  const ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
               vector<PointType> targetPoints,
               ActiveShapeModelType* asmodel,
               RigidTransformPointerType transform,
@@ -290,7 +297,7 @@ namespace statismo {
             RandomProposal<ChainSampleType >* mainProposal = new RandomProposal<ChainSampleType >(poseProposalsVector,rGen);
 
             // Evaluators // TODO: integrate ASM evaluator
-            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.1);
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.01);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
 
             Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.5);
@@ -302,7 +309,9 @@ namespace statismo {
             ProductEvaluator<ChainSampleType >* productEvaluator = new ProductEvaluator<ChainSampleType >(evaluatorList);
 
             // markov chain
-            MarkovChain<ChainSampleType >* chain =  new MetropolisHastings<ChainSampleType >(mainProposal, productEvaluator, new QuietLogger<ChainSampleType >(), init, rGen );
+              BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
+              QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
+            MarkovChain<ChainSampleType >* chain =  new MetropolisHastings<ChainSampleType >(mainProposal, pointEval, bml, init, rGen );
             return chain;
           }
       };
@@ -369,7 +378,9 @@ namespace statismo {
 
         // runs a markov chain and returns only the accepted proposals
         ChainSampleType params;//(m_sourceTransform,m_sourceCoefficients);
+          std::cout << " before next " << std::endl;
         m_chain->next(params);
+          std::cout << " next called " << std::endl;
         ChainSampleType mhResult(params.GetCoefficients(), params.GetRigidTransform());
         return mhResult;
       }

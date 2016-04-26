@@ -54,20 +54,33 @@ namespace itk {
     typedef itk::StandardMeshRepresenter<float, 3> RepresenterType;
 
     class itkMeshClosestPoint : public statismo::ClosestPoint<RepresenterType::DatasetPointerType, RepresenterType::PointType> {
+        typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
 
     public:
         itkMeshClosestPoint() {}
 
 
-        virtual RepresenterType::PointType findClosestPoint(RepresenterType::MeshPointerType mesh, RepresenterType::PointType pt) const {
-            typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
+        void InitializePointLocator(RepresenterType::MeshPointerType mesh) const {
+            m_ptLocator = PointsLocatorType::New();
+            m_ptLocator->SetPoints(mesh->GetPoints());
+            m_ptLocator->Initialize();
 
-            PointsLocatorType::Pointer ptLocator = PointsLocatorType::New();
-            ptLocator->SetPoints(mesh->GetPoints());
-            ptLocator->Initialize();
-            long ptId = ptLocator->FindClosestPoint(pt);
-            return mesh->GetPoint(ptId);
+        };
+
+        virtual RepresenterType::PointType findClosestPoint(RepresenterType::MeshPointerType mesh, RepresenterType::PointType pt) const {
+            if (mesh.GetPointer() != m_cachedMesh.GetPointer()) {
+                m_cachedMesh = mesh;
+                InitializePointLocator(mesh);
+            }
+
+            long ptId = m_ptLocator->FindClosestPoint(pt);
+
+            return pt;
         }
+
+    private:
+        mutable PointsLocatorType::Pointer m_ptLocator;
+        mutable RepresenterType::MeshPointerType m_cachedMesh;
     };
 
 
@@ -154,7 +167,7 @@ namespace itk {
         MHFittingStep() : /* m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) */ m_chain(0) { }
 
         void init(ImagePointerType target,
-                  std::vector<PointType> targetPoints,
+                  const std::vector<PointType>& targetPoints,
                   ModelPointerType model,
                   SamplerPointerType sampler,
                   ConfigurationType configuration,
@@ -177,7 +190,7 @@ namespace itk {
 //            statismo::VectorType coeffs
 
             typedef typename statismo::mcmc<TPointSet,TImage>::template BasicSampling<TPointSet> BasicSampingType;
-            itkMeshClosestPoint closestPointEv;
+            itkMeshClosestPoint* closestPointEv = new itkMeshClosestPoint() ;// TODO this is a memory leak - there must be a better way
             m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, targetPoints, model->GetstatismoImplObj(), transform,coeffs);
         }
 
