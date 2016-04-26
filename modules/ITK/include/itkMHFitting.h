@@ -45,9 +45,30 @@
 #include "MHFitting.h"
 #include "itkActiveShapeModel.h"
 #include "itkASMPointSampler.h"
+#include "itkPointsLocator.h"
 #include <vector>
+#include "itkStandardMeshRepresenter.h"
 
 namespace itk {
+
+    typedef itk::StandardMeshRepresenter<float, 3> RepresenterType;
+
+    class itkMeshClosestPoint : public statismo::ClosestPoint<RepresenterType::DatasetPointerType, RepresenterType::PointType> {
+
+    public:
+        itkMeshClosestPoint() {}
+
+
+        virtual RepresenterType::PointType findClosestPoint(RepresenterType::MeshPointerType mesh, RepresenterType::PointType pt) const {
+            typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
+
+            PointsLocatorType::Pointer ptLocator = PointsLocatorType::New();
+            ptLocator->SetPoints(mesh->GetPoints());
+            ptLocator->Initialize();
+            long ptId = ptLocator->FindClosestPoint(pt);
+            return mesh->GetPoint(ptId);
+        }
+    };
 
 
     template<typename TPointSet, typename TImage>
@@ -155,7 +176,9 @@ namespace itk {
 //            RigidTransformPointerType transform,
 //            statismo::VectorType coeffs
 
-            m_chain = statismo::mcmc<TPointSet,TImage>::BasicSampling::buildChain(targetPoints, model->GetstatismoImplObj(), transform,coeffs);
+            typedef typename statismo::mcmc<TPointSet,TImage>::template BasicSampling<TPointSet> BasicSampingType;
+            itkMeshClosestPoint closestPointEv;
+            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, targetPoints, model->GetstatismoImplObj(), transform,coeffs);
         }
 
 

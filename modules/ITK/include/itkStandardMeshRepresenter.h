@@ -225,6 +225,9 @@ class StandardMeshRepresenter : public statismo::MeshRepresenter<itk::Mesh<TPixe
     virtual typename MeshType::Pointer TransformMesh(typename MeshType::Pointer mesh, const RigidTransformPointerType transform) const;
     virtual RigidTransformPointerType ComputeRigidTransformFromLandmarks(const std::vector<PointType> &fixedLandmarks, const std::vector<PointType> &movingLandmarks) const;
 
+
+
+
   private:
 
     typename MeshType::Pointer LoadRef(const H5::Group& fg) const;

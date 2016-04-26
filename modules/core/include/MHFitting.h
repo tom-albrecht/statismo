@@ -64,6 +64,13 @@ namespace statismo {
   using namespace sampling;
   using namespace std;
 
+
+    template <class MeshType, class PointType>
+    class ClosestPoint {
+    public:
+        virtual PointType findClosestPoint(MeshType mesh, PointType pt) const = 0;
+    };
+
   template<typename RigidTransformPointerType>
   class MHFittingResult {
     public:
@@ -131,7 +138,7 @@ namespace statismo {
           virtual void generateProposal(ChainSampleType& proposal, const ChainSampleType& currentSample){
             VectorType shapeParams = currentSample.GetCoefficients();
 
-            // TODO: Update model parameters with gaussian noise
+
             proposal = ChainSampleType(shapeParams,currentSample.GetRigidTransform());
           }
           virtual double transitionProbability(const ChainSampleType& start, const ChainSampleType& end){
@@ -216,31 +223,37 @@ namespace statismo {
       };
 
 
+      template <class T>
       class PointEvaluator : public DistributionEvaluator< ChainSampleType > {
+          typedef ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
+
         public:
-          PointEvaluator( vector< PointType > targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
+          PointEvaluator( const Representer<T>* representer, const ClosestPointType& closestPoint, vector< PointType > targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
             targetPoints(targetPoints),
             smodel(asmodel->GetStatisticalModel()),
-            eval(evaluator)
+            eval(evaluator),
+            m_closestPoint(closestPoint)
+
           {}
 
           // DistributionEvaluatorInterface interface
         public:
           virtual double evalSample(const ChainSampleType& currentSample) {
-            double val = 0.0;
+            double distance = 0.0;
 
             // TODO to draw full sample only for landmarks is inefficient
             SampleType sample = smodel->DrawSample(currentSample.GetCoefficients());
             for( int i = 0; i < targetPoints.size(); ++i) {
-              PointType closestPoint = targetPoints[i]; // TODO: implement findClosestPoint
-              val += eval->evalSample(closestPoint-targetPoints[i]);
+              PointType closestPtOnSample =  m_closestPoint.findClosestPoint(sample, targetPoints[i]);
+              distance += eval->evalSample(closestPtOnSample-targetPoints[i]);
             }
-            return 0.0;
+            return distance * (-1.0);
           }
         private:
           vector< PointType > targetPoints;
           const StatisticalModelType* smodel;
           PositionEvaluator* eval;
+          const ClosestPointType& m_closestPoint;
 
       };
 
@@ -251,9 +264,12 @@ namespace statismo {
     public:
       // "Script"
       /*============================================================================*/
+      template <class T>
       class BasicSampling {
         public:
           static MarkovChain<ChainSampleType >* buildChain(
+                  const Representer<T>* representer,
+                  const ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>& closestPoint,
               vector<PointType> targetPoints,
               ActiveShapeModelType* asmodel,
               RigidTransformPointerType transform,
@@ -273,10 +289,10 @@ namespace statismo {
 
             // Evaluators // TODO: integrate ASM evaluator
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.1);
-            PointEvaluator* pointEval = new PointEvaluator(targetPoints,asmodel,diffEval);
+            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
 
             Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.5);
-            PointEvaluator* widePointEval = new PointEvaluator(targetPoints,asmodel,wideDiffEval);
+            PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
 
             std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList(2);
             evaluatorList[0] = pointEval;
