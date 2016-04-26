@@ -15,6 +15,7 @@
 #include "itkMHFitting.h"
 #include "itkMeshFileWriter.h"
 #include "itkTimeProbe.h"
+#include "itkMeshFileReader.h"
 //#include "itkRigidTransformModelBuilder.h"
 
 
@@ -51,8 +52,8 @@ int main(int argc, char *argv[]) {
     statismo::ASMFeatureExtractorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMNormalDirectionFeatureExtractorFactory<MeshType, ImageType>::GetInstance());
     statismo::ASMImagePreprocessorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMGaussianGradientImagePreprocessorFactory<MeshType, ImageType>::GetInstance());
 
-    std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
-//    std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
+    //std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
+    std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
 
     ActiveShapeModelType::Pointer aModel = ActiveShapeModelType::New();
     RepresenterType::Pointer representer = RepresenterType::New();
@@ -79,8 +80,8 @@ int main(int argc, char *argv[]) {
     // read and preprocess image
     ImageReaderType::Pointer reader = ImageReaderType::New();
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
-    reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
-    //reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
+    //reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
+    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
 
     reader->Update();
     ImageType::Pointer image = reader->GetOutput();
@@ -92,8 +93,12 @@ int main(int argc, char *argv[]) {
 
 
     // a vector with all the point constraints that should be used within the fitting
+//    itk::MeshFileReader<MeshType>::Pointer meshReader = itk::MeshFileReader<MeshType>::New();
+//    meshReader->SetFileName("/tmp/x.vtk");
+//    meshReader->Update();
+//    MeshType::Pointer mesh = meshReader->GetOutput();
     std::vector<PointType> linePoints;
-    PointType t1,t2,t3,t4,t5,t6, t7, t8, t9;
+     PointType t1,t2,t3,t4,t5,t6, t7, t8, t9;
     t1[0] = 63.4184455871582f; t1[1]=-56.53125f; t1[2] = 400.44671630859375f;
     t2[0] = 49.84854507446289f; t2[1]=-56.53125f; t2[2]=426.7882995605469f;
     t3[0] =-14.279170989990234f; t3[1]=-56.53125f; t3[2] =620.8013916015625f;

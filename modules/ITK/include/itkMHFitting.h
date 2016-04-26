@@ -64,7 +64,6 @@ namespace itk {
             m_ptLocator = PointsLocatorType::New();
             m_ptLocator->SetPoints(mesh->GetPoints());
             m_ptLocator->Initialize();
-
         };
 
         virtual RepresenterType::PointType findClosestPoint(RepresenterType::MeshPointerType mesh, RepresenterType::PointType pt) const {
@@ -74,8 +73,7 @@ namespace itk {
             }
 
             long ptId = m_ptLocator->FindClosestPoint(pt);
-
-            return pt;
+            return mesh->GetPoints()->GetElement(ptId);
         }
 
     private:

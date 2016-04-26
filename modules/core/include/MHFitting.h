@@ -202,15 +202,15 @@ namespace statismo {
           const RepresenterType* rep;
         public:
           Gaussian3DPositionDifferenceEvaluator( const RepresenterType* representer, double sigma = 1.0) : rep(representer){
-            sigma = sigma;
-            dNormalizer = -1.5*log( 2*M_PI ) - 3.0 * log( sigma );
+            m_sigma = sigma;
+            m_dNormalizer = -1.5*log( 2*M_PI ) - 3.0 * log( sigma );
           }
 
 
           double evalSample( PointType const& diff )
           {
             double dVal = rep->PointToVector(diff).squaredNorm(); // TODO check if PointType has this function norm2
-            return -dVal/(2.0*sigma*sigma) + dNormalizer;
+            return -dVal/(2.0*m_sigma*m_sigma) + m_dNormalizer;
           }
 
           void evalGradient( PointType& grad, PointType const& diff )
@@ -224,8 +224,8 @@ namespace statismo {
           }
 
         private:
-          double sigma;
-          double dNormalizer;
+          double m_sigma;
+          double m_dNormalizer;
       };
 
 
@@ -253,9 +253,11 @@ namespace statismo {
             for( int i = 0; i < m_targetPoints.size(); ++i) {
 
               PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]);
-              distance += m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
+              double d = m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
+
+                distance += d;
             }
-            return distance * (-1.0);
+            return distance;
 
           }
         private:
@@ -297,10 +299,10 @@ namespace statismo {
             RandomProposal<ChainSampleType >* mainProposal = new RandomProposal<ChainSampleType >(poseProposalsVector,rGen);
 
             // Evaluators // TODO: integrate ASM evaluator
-            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.01);
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
 
-            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.5);
+            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 5.0);
             PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
 
             std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList(2);
@@ -311,7 +313,7 @@ namespace statismo {
             // markov chain
               BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
               QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
-            MarkovChain<ChainSampleType >* chain =  new MetropolisHastings<ChainSampleType >(mainProposal, pointEval, bml, init, rGen );
+            MarkovChain<ChainSampleType >* chain =  new MetropolisHastings<ChainSampleType >(mainProposal, pointEval, ql, init, rGen );
             return chain;
           }
       };
@@ -378,9 +380,7 @@ namespace statismo {
 
         // runs a markov chain and returns only the accepted proposals
         ChainSampleType params;//(m_sourceTransform,m_sourceCoefficients);
-          std::cout << " before next " << std::endl;
         m_chain->next(params);
-          std::cout << " next called " << std::endl;
         ChainSampleType mhResult(params.GetCoefficients(), params.GetRigidTransform());
         return mhResult;
       }
