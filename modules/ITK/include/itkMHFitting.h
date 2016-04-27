@@ -189,7 +189,7 @@ namespace itk {
 
             typedef typename statismo::mcmc<TPointSet,TImage>::template BasicSampling<TPointSet> BasicSampingType;
             itkMeshClosestPoint* closestPointEv = new itkMeshClosestPoint() ;// TODO this is a memory leak - there must be a better way
-            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, targetImage, targetPoints, model->GetstatismoImplObj(), m_sampler, transform,coeffs);
+            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, configuration, targetImage, targetPoints, model->GetstatismoImplObj(), m_sampler, transform,coeffs);
         }
 
 

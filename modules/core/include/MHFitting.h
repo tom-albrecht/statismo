@@ -66,6 +66,23 @@ namespace statismo {
   using namespace std;
 
 
+
+
+
+    class MHFittingConfiguration {
+    private:
+
+    public:
+        MHFittingConfiguration(const ASMFittingConfiguration& asmFittingConfiguration, unsigned numberOfProfilePoints = 100 ) : m_asmFittingConfiguration(asmFittingConfiguration) { }
+        const ASMFittingConfiguration& GetAsmFittingconfiguration() const {return m_asmFittingConfiguration; }
+
+    private:
+        ASMFittingConfiguration m_asmFittingConfiguration;
+    };
+
+
+
+
     template <class MeshType, class PointType>
     class ClosestPoint {
     public:
@@ -156,19 +173,24 @@ namespace statismo {
       class ASMModelUpdate : public ProposalGenerator<ChainSampleType > {
         private:
           int N;
-          ActiveShapeModelType* asmodel;
-          ASMFittingConfiguration* fittingConfiguration;
-          TImage* target;
-          PointSamplerType* sampler;
+          ActiveShapeModelType* m_asmodel;
+          ASMFittingConfiguration m_fittingConfiguration;
+          PreprocessedImageType* m_target;
+          PointSamplerType* m_sampler;
 
         public:
-          ASMModelUpdate( ActiveShapeModelType* asmodel, int nSteps = 1 ) : N(nSteps), asmodel(asmodel) {}
+          ASMModelUpdate(ASMFittingConfiguration config, ActiveShapeModelType* asmodel, PreprocessedImageType* target,  PointSamplerType* sampler, int nSteps = 1 )
+                  : m_fittingConfiguration(config),
+                  m_asmodel(asmodel) ,
+                    m_target(target),
+                    m_sampler(sampler),
+                  N(nSteps) {}
 
           // ProposalGeneratorInterface interface
         public:
           virtual void generateProposal(ChainSampleType& proposal, const ChainSampleType& currentSample){
 
-            ASMFittingStepType* asmFittingStep = ASMFittingStepType::Create(fittingConfiguration, asmodel, currentSample.GetCoefficients(), currentSample.GetRigidTransform(), target, sampler);
+            ASMFittingStepType* asmFittingStep = ASMFittingStepType::Create(m_fittingConfiguration, m_asmodel, currentSample.GetCoefficients(), currentSample.GetRigidTransform(), m_target, m_sampler);
             ASMFittingResult<RigidTransformPointerType> result = asmFittingStep->Perform();
             proposal = ChainSampleType(result.GetCoefficients(),result.GetRigidTransform());
           }
@@ -357,6 +379,7 @@ namespace statismo {
           static MarkovChain<ChainSampleType >* buildChain(
                   const Representer<T>* representer,
                   const ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
+                  MHFittingConfiguration config,
                   ASMPreprocessedImage<typename Representer<T>::DatasetType>* targetImage,
               vector<PointType> targetPoints,
               ActiveShapeModelType* asmodel,
@@ -369,12 +392,18 @@ namespace statismo {
             ChainSampleType init = ChainSampleType(coeffs,transform);
 
             // Proposals // TODO: add ASMProposal
-            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0.1,rGen);
-            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.01,rGen);
-            vector< typename RandomProposal< ChainSampleType >::GeneratorPair> poseProposalsVector(2);
-            poseProposalsVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.3);
-            poseProposalsVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.7);
-            RandomProposal<ChainSampleType >* mainProposal = new RandomProposal<ChainSampleType >(poseProposalsVector,rGen);
+            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0.2,rGen);
+            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.05,rGen);
+              GaussianModelUpdate* poseProposalFinest = new GaussianModelUpdate(0.01,rGen);
+              ASMModelUpdate* asmProposal = new ASMModelUpdate(config.GetAsmFittingconfiguration(), asmodel, targetImage, asmPointSampler);
+
+
+            vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
+            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.2);
+            gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.2);
+              gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.6);
+
+              RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector,rGen);
 
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
@@ -383,7 +412,7 @@ namespace statismo {
 
 
               QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
-              MarkovChain<ChainSampleType >* landMarkchain =  new MetropolisHastings<ChainSampleType >(mainProposal, pointEval, ql, init, rGen );
+              MarkovChain<ChainSampleType >* landMarkchain =  new MetropolisHastings<ChainSampleType >(gaussMixtureProposal, pointEval, ql, init, rGen );
               MarkovChainProposal<ChainSampleType>* lmChainProposal = new MarkovChainProposal<ChainSampleType>(landMarkchain, 10);
 
 
@@ -392,19 +421,29 @@ namespace statismo {
             ASMEvaluator<T>* asmEvaluator = new ASMEvaluator<T>(asmodel, targetImage, asmPointSampler);
 
               std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList;
-              ProposalGenerator<ChainSampleType>* finalProposal = 0;
+              vector< typename RandomProposal< ChainSampleType >::GeneratorPair> finalProposalVector;
+
+
               if (targetPoints.size() > 0) {
                   evaluatorList.push_back(pointEval);
                   evaluatorList.push_back(asmEvaluator);
                   evaluatorList.push_back(modelPriorEvaluator);
-                  finalProposal = lmChainProposal;
+
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(lmChainProposal,0.9));
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.1));
+
               } else {
                   evaluatorList.push_back(asmEvaluator);
                   evaluatorList.push_back(modelPriorEvaluator);
-                  finalProposal = mainProposal;
-              }
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(gaussMixtureProposal,0.9));
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.1));
 
-            ProductEvaluator<ChainSampleType >* productEvaluator = new ProductEvaluator<ChainSampleType >(evaluatorList);
+              }
+              RandomProposal<ChainSampleType >* finalProposal = new RandomProposal<ChainSampleType >(finalProposalVector,rGen);
+
+
+
+              ProductEvaluator<ChainSampleType >* productEvaluator = new ProductEvaluator<ChainSampleType >(evaluatorList);
 
             // markov chain
               BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
@@ -416,18 +455,6 @@ namespace statismo {
       };
 
   };
-
-  class MHFittingConfiguration {
-    private:
-
-    public:
-      MHFittingConfiguration(const ASMFittingConfiguration& asmFittingConfiguration, unsigned numberOfProfilePoints = 100 ) : m_asmFittingConfiguration(asmFittingConfiguration) { }
-      const ASMFittingConfiguration& GetAsmFittingconfiguration() const {return m_asmFittingConfiguration; }
-
-    private:
-      ASMFittingConfiguration m_asmFittingConfiguration;
-  };
-
 
 
 
