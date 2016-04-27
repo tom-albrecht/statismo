@@ -269,6 +269,56 @@ namespace statismo {
       };
 
 
+
+      template <class T>
+      class ASMEvaluator : public DistributionEvaluator< ChainSampleType > {
+        typedef  ASMPreprocessedImage<typename RepresenterType::DatasetType> PreprocessedImageType;
+
+      public:
+          ASMEvaluator(ActiveShapeModelType* asmodel, PreprocessedImageType* image, PointSamplerType* sampler) :
+                  m_asmodel(asmodel),
+                  m_image(image),
+                  m_sampler(sampler)
+          {}
+
+          // DistributionEvaluatorInterface interface
+      public:
+          virtual double evalSample(const ChainSampleType& currentSample) {
+              double distance = 0.0;
+
+              // TODO we need to take rotations into accout
+              typename RepresenterType::DatasetPointerType  sample =m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
+
+              statismo::ASMFittingConfiguration asmFitConfig(3,5,3);
+
+              ASMFittingStepType* step = ASMFittingStepType::Create(asmFitConfig, m_asmodel, currentSample.GetCoefficients(), currentSample.GetRigidTransform(),m_image,m_sampler);
+                step->Perform();
+              for (unsigned i = 0; i < m_asmodel->GetProfiles().size(); ++i) {
+                    ASMProfile profile = m_asmodel->GetProfiles()[i];
+                  long ptId = profile.GetPointId();
+                  std::cout << "image valua at point " << m_image->Evaluate(sample->GetPoint(ptId)) << std::endl;
+                  statismo::VectorType features;
+                  std::cout << "before extracting feature " << std::endl;
+                  m_sampler->Sample(sample->GetPoint(ptId));
+                  bool ok = m_asmodel->GetFeatureExtractor()->ExtractFeatures(features, m_image, sample->GetPoint(ptId));
+                  std::cout << "after feature was extracted " << std::endl;
+                  if (ok) {
+                      float featureDistance = profile.GetDistribution().MahalanobisDistance(features);
+                      distance += featureDistance;
+                  }
+              }
+              // evaluate profile points at ...
+
+              return -distance;
+
+          }
+      private:
+          const ActiveShapeModelType* m_asmodel;
+          PreprocessedImageType* m_image;
+          PointSamplerType* m_sampler;
+      };
+
+
       // TODO: Full image evaluator, i.e. ASM Evaluator is missing
 
 
@@ -281,8 +331,10 @@ namespace statismo {
           static MarkovChain<ChainSampleType >* buildChain(
                   const Representer<T>* representer,
                   const ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
+                  ASMPreprocessedImage<typename Representer<T>::DatasetType>* targetImage,
               vector<PointType> targetPoints,
               ActiveShapeModelType* asmodel,
+                  PointSamplerType* asmPointSampler,
               RigidTransformPointerType transform,
               statismo::VectorType coeffs) {
 
@@ -301,19 +353,20 @@ namespace statismo {
             // Evaluators // TODO: integrate ASM evaluator
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
-
-            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 5.0);
-            PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
+//
+//            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 5.0);
+//            PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
+            ASMEvaluator<T>* asmEvaluator = new ASMEvaluator<T>(asmodel, targetImage, asmPointSampler);
 
             std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList(2);
             evaluatorList[0] = pointEval;
-            evaluatorList[1] = widePointEval;
+            evaluatorList[1] = asmEvaluator;
             ProductEvaluator<ChainSampleType >* productEvaluator = new ProductEvaluator<ChainSampleType >(evaluatorList);
 
             // markov chain
               BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
               QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
-            MarkovChain<ChainSampleType >* chain =  new MetropolisHastings<ChainSampleType >(mainProposal, pointEval, ql, init, rGen );
+            MarkovChain<ChainSampleType >* chain =  new MetropolisHastings<ChainSampleType >(mainProposal, asmEvaluator, ql, init, rGen );
             return chain;
           }
       };

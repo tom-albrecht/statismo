@@ -164,7 +164,7 @@ namespace itk {
 
         MHFittingStep() : /* m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) */ m_chain(0) { }
 
-        void init(ImagePointerType target,
+        void init(ImagePointerType targetImage,
                   const std::vector<PointType>& targetPoints,
                   ModelPointerType model,
                   SamplerPointerType sampler,
@@ -174,7 +174,7 @@ namespace itk {
         {
             m_model = model;
 //            m_target = target;
-//            m_sampler = sampler;
+            m_sampler = sampler; // need to hold it here, as otherwise it crashes.
 //            m_transform = transform;
 //            m_coeffs = coeffs;
 //            m_configuration = configuration;
@@ -189,7 +189,7 @@ namespace itk {
 
             typedef typename statismo::mcmc<TPointSet,TImage>::template BasicSampling<TPointSet> BasicSampingType;
             itkMeshClosestPoint* closestPointEv = new itkMeshClosestPoint() ;// TODO this is a memory leak - there must be a better way
-            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, targetPoints, model->GetstatismoImplObj(), transform,coeffs);
+            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, targetImage, targetPoints, model->GetstatismoImplObj(), m_sampler, transform,coeffs);
         }
 
 
@@ -246,7 +246,7 @@ namespace itk {
  //       statismo::VectorType m_coeffs;
  //       RigidTransformPointerType m_transform;
   //      ImagePointerType m_target;
-   //     SamplerPointerType m_sampler;
+        SamplerPointerType m_sampler;
     //    ConfigurationType m_configuration;
     //    std::vector<PointType> m_linePoints;
         typename ResultType::Pointer m_result;
