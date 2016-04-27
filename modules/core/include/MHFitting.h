@@ -196,6 +196,31 @@ namespace statismo {
           }
       };
 
+
+      class ModelPriorEvaluator : public DistributionEvaluator<ChainSampleType>
+      {
+      public:
+          virtual double evalSample(const ChainSampleType& currentSample) {
+
+                VectorType coefficients = currentSample.GetCoefficients();
+              return -0.5 * coefficients.size() *log( 2*M_PI ) - 0.5 * coefficients.squaredNorm();
+
+          }
+
+          /// dummy gradient, zero, do nothing
+          virtual void evalGradient( PointType& gradient, PointType const& sample )
+          {
+              throw logic_error("no gradient implemented in PositionEvaluator");
+          }
+
+          /// Returns whether this evaluator is separable into x and y coordinates
+          virtual bool isSeparable() const
+          {
+              return false;
+          }
+      };
+
+
       class Gaussian3DPositionDifferenceEvaluator : public PositionEvaluator
       {
         private:
@@ -289,11 +314,9 @@ namespace statismo {
               // TODO we need to take rotations into accout
               typename RepresenterType::DatasetPointerType  sample =m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
 
-              statismo::ASMFittingConfiguration asmFitConfig(3,5,3);
-
               FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
 
-              unsigned numProfilePointsUsed = 100;
+              unsigned numProfilePointsUsed = 500;
               unsigned step = m_asmodel->GetProfiles().size() / numProfilePointsUsed;
               for (unsigned i = 0; i < numProfilePointsUsed; i += step) {
 
@@ -355,6 +378,7 @@ namespace statismo {
 
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
+            ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
 //
 
 
@@ -367,20 +391,26 @@ namespace statismo {
 //            PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
             ASMEvaluator<T>* asmEvaluator = new ASMEvaluator<T>(asmodel, targetImage, asmPointSampler);
 
-            std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList(2);
-            evaluatorList[0] = pointEval;
-            evaluatorList[1] = asmEvaluator;
+              std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList;
+              ProposalGenerator<ChainSampleType>* finalProposal = 0;
+              if (targetPoints.size() > 0) {
+                  evaluatorList.push_back(pointEval);
+                  evaluatorList.push_back(asmEvaluator);
+                  evaluatorList.push_back(modelPriorEvaluator);
+                  finalProposal = lmChainProposal;
+              } else {
+                  evaluatorList.push_back(asmEvaluator);
+                  evaluatorList.push_back(modelPriorEvaluator);
+                  finalProposal = mainProposal;
+              }
+
             ProductEvaluator<ChainSampleType >* productEvaluator = new ProductEvaluator<ChainSampleType >(evaluatorList);
 
             // markov chain
               BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
 
-              MarkovChain<ChainSampleType >* chain = 0;
-              if (targetPoints.size() > 0) {
-                  chain = new MetropolisHastings<ChainSampleType>(lmChainProposal, productEvaluator, ql, init, rGen);
-              } else {
-                  chain = new MetropolisHastings<ChainSampleType>(mainProposal, asmEvaluator, ql, init, rGen);
-              }
+              MarkovChain<ChainSampleType >* chain = new MetropolisHastings<ChainSampleType>(finalProposal, productEvaluator, ql, init, rGen);
+
             return chain;
           }
       };
