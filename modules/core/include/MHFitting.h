@@ -58,7 +58,7 @@
 #include <Sampling/RandomGenerator.h>
 #include <Sampling/Algorithm/MetropolisHastings.h>
 #include <Sampling/Logger/BestMatchLogger.h>
-
+#include <Sampling/Proposal/MarkovChainProposal.h>
 
 
 namespace statismo {
@@ -293,7 +293,10 @@ namespace statismo {
 
               FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
 
-              for (unsigned i = 0; i < m_asmodel->GetProfiles().size(); ++i) {
+              unsigned numProfilePointsUsed = 100;
+              unsigned step = m_asmodel->GetProfiles().size() / numProfilePointsUsed;
+              for (unsigned i = 0; i < numProfilePointsUsed; i += step) {
+
                     ASMProfile profile = m_asmodel->GetProfiles()[i];
                   long ptId = profile.GetPointId();
 
@@ -315,6 +318,7 @@ namespace statismo {
           const ActiveShapeModelType* m_asmodel;
           PreprocessedImageType* m_image;
           PointSamplerType* m_sampler;
+          RandomGenerator* m_rGen;
       };
 
 
@@ -349,10 +353,16 @@ namespace statismo {
             poseProposalsVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.7);
             RandomProposal<ChainSampleType >* mainProposal = new RandomProposal<ChainSampleType >(poseProposalsVector,rGen);
 
-            // Evaluators // TODO: integrate ASM evaluator
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
 //
+
+
+              QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
+              MarkovChain<ChainSampleType >* landMarkchain =  new MetropolisHastings<ChainSampleType >(mainProposal, pointEval, ql, init, rGen );
+              MarkovChainProposal<ChainSampleType>* lmChainProposal = new MarkovChainProposal<ChainSampleType>(landMarkchain, 10);
+
+
 //            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 5.0);
 //            PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
             ASMEvaluator<T>* asmEvaluator = new ASMEvaluator<T>(asmodel, targetImage, asmPointSampler);
@@ -364,8 +374,13 @@ namespace statismo {
 
             // markov chain
               BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
-              QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
-            MarkovChain<ChainSampleType >* chain =  new MetropolisHastings<ChainSampleType >(mainProposal, asmEvaluator, ql, init, rGen );
+
+              MarkovChain<ChainSampleType >* chain = 0;
+              if (targetPoints.size() > 0) {
+                  chain = new MetropolisHastings<ChainSampleType>(lmChainProposal, productEvaluator, ql, init, rGen);
+              } else {
+                  chain = new MetropolisHastings<ChainSampleType>(mainProposal, asmEvaluator, ql, init, rGen);
+              }
             return chain;
           }
       };
@@ -376,7 +391,7 @@ namespace statismo {
     private:
 
     public:
-      MHFittingConfiguration(const ASMFittingConfiguration& asmFittingConfiguration) : m_asmFittingConfiguration(asmFittingConfiguration) { }
+      MHFittingConfiguration(const ASMFittingConfiguration& asmFittingConfiguration, unsigned numberOfProfilePoints = 100 ) : m_asmFittingConfiguration(asmFittingConfiguration) { }
       const ASMFittingConfiguration& GetAsmFittingconfiguration() const {return m_asmFittingConfiguration; }
 
     private:

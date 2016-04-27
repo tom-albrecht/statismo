@@ -93,11 +93,14 @@ int main(int argc, char *argv[]) {
 
 
     // a vector with all the point constraints that should be used within the fitting
-//    itk::MeshFileReader<MeshType>::Pointer meshReader = itk::MeshFileReader<MeshType>::New();
-//    meshReader->SetFileName("/tmp/x.vtk");
-//    meshReader->Update();
-//    MeshType::Pointer mesh = meshReader->GetOutput();
+    itk::MeshFileReader<MeshType>::Pointer meshReader = itk::MeshFileReader<MeshType>::New();
+    meshReader->SetFileName("/tmp/vsd-0.vtk");
+    meshReader->Update();
+    MeshType::Pointer mesh = meshReader->GetOutput();
     std::vector<PointType> linePoints;
+//    for (unsigned i = 0; i < mesh->GetNumberOfPoints(); ++i) {
+//        if (i % 100 == 0) linePoints.push_back(mesh->GetPoint(i));
+//    }
 //     PointType t1,t2,t3,t4,t5,t6, t7, t8, t9;
 //    t1[0] = 63.4184455871582f; t1[1]=-56.53125f; t1[2] = 400.44671630859375f;
 //    t2[0] = 49.84854507446289f; t2[1]=-56.53125f; t2[2]=426.7882995605469f;
@@ -108,8 +111,8 @@ int main(int argc, char *argv[]) {
 //    t7[0] =61.776329040527344f; t7[1]=-51.84375f; t7[2]=512.01806640625f;
 //    t8[0] = 35.07177734375f; t8[1]=-51.84375f, t8[2]=560.8924560546875f;
 //    t9[0] =46.15668487548828; t9[1]=-51.84375f; t9[2]=565.4271850585938f;
-
-
+//
+//
 //    linePoints.push_back(t1);
 //    linePoints.push_back(t2);
 //    linePoints.push_back(t3);
@@ -119,7 +122,7 @@ int main(int argc, char *argv[]) {
 //    linePoints.push_back(t7);
 //    linePoints.push_back(t8);
 //    linePoints.push_back(t9);
-
+//
 
 
 
