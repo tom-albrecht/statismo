@@ -52,8 +52,8 @@ int main(int argc, char *argv[]) {
     statismo::ASMFeatureExtractorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMNormalDirectionFeatureExtractorFactory<MeshType, ImageType>::GetInstance());
     statismo::ASMImagePreprocessorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMGaussianGradientImagePreprocessorFactory<MeshType, ImageType>::GetInstance());
 
-    //std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
-    std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
+    std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
+//    std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
 
     ActiveShapeModelType::Pointer aModel = ActiveShapeModelType::New();
     RepresenterType::Pointer representer = RepresenterType::New();
@@ -80,8 +80,8 @@ int main(int argc, char *argv[]) {
     // read and preprocess image
     ImageReaderType::Pointer reader = ImageReaderType::New();
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
-    //reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
-    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
+    reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
+    //reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
 
     reader->Update();
     ImageType::Pointer image = reader->GetOutput();
@@ -98,27 +98,27 @@ int main(int argc, char *argv[]) {
 //    meshReader->Update();
 //    MeshType::Pointer mesh = meshReader->GetOutput();
     std::vector<PointType> linePoints;
-     PointType t1,t2,t3,t4,t5,t6, t7, t8, t9;
-    t1[0] = 63.4184455871582f; t1[1]=-56.53125f; t1[2] = 400.44671630859375f;
-    t2[0] = 49.84854507446289f; t2[1]=-56.53125f; t2[2]=426.7882995605469f;
-    t3[0] =-14.279170989990234f; t3[1]=-56.53125f; t3[2] =620.8013916015625f;
-    t4[0]=-5.718493461608887; t4[1]=-56.53125f; t4[2]=635.908447265625f;
-    t5[0]=10.8992919921875f; t5[1]=-56.53125f; t5[2]=623.8228149414062f;
-    t6[0] = 49.68370056152344f; t6[1]=-51.84375f; t6[2]=510.5065002441406f;
-    t7[0] =61.776329040527344f; t7[1]=-51.84375f; t7[2]=512.01806640625f;
-    t8[0] = 35.07177734375f; t8[1]=-51.84375f, t8[2]=560.8924560546875f;
-    t9[0] =46.15668487548828; t9[1]=-51.84375f; t9[2]=565.4271850585938f;
+//     PointType t1,t2,t3,t4,t5,t6, t7, t8, t9;
+//    t1[0] = 63.4184455871582f; t1[1]=-56.53125f; t1[2] = 400.44671630859375f;
+//    t2[0] = 49.84854507446289f; t2[1]=-56.53125f; t2[2]=426.7882995605469f;
+//    t3[0] =-14.279170989990234f; t3[1]=-56.53125f; t3[2] =620.8013916015625f;
+//    t4[0]=-5.718493461608887; t4[1]=-56.53125f; t4[2]=635.908447265625f;
+//    t5[0]=10.8992919921875f; t5[1]=-56.53125f; t5[2]=623.8228149414062f;
+//    t6[0] = 49.68370056152344f; t6[1]=-51.84375f; t6[2]=510.5065002441406f;
+//    t7[0] =61.776329040527344f; t7[1]=-51.84375f; t7[2]=512.01806640625f;
+//    t8[0] = 35.07177734375f; t8[1]=-51.84375f, t8[2]=560.8924560546875f;
+//    t9[0] =46.15668487548828; t9[1]=-51.84375f; t9[2]=565.4271850585938f;
 
 
-    linePoints.push_back(t1);
-    linePoints.push_back(t2);
-    linePoints.push_back(t3);
-    linePoints.push_back(t4);
-    linePoints.push_back(t5);
-    linePoints.push_back(t6);
-    linePoints.push_back(t7);
-    linePoints.push_back(t8);
-    linePoints.push_back(t9);
+//    linePoints.push_back(t1);
+//    linePoints.push_back(t2);
+//    linePoints.push_back(t3);
+//    linePoints.push_back(t4);
+//    linePoints.push_back(t5);
+//    linePoints.push_back(t6);
+//    linePoints.push_back(t7);
+//    linePoints.push_back(t8);
+//    linePoints.push_back(t9);
 
 
 

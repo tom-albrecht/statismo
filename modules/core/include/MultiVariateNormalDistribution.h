@@ -39,6 +39,7 @@
 #define STATISMO_MULTIVARIATENORMALDISTRIBUTION_H
 
 #include "CommonTypes.h"
+#include <cmath>
 #include "StatismoUtils.h"
 
 namespace statismo {
@@ -55,6 +56,16 @@ namespace statismo {
             if (!Utils::PseudoInverse(covariance, covInv)) {
                 //FIXME: throw some exception
             }
+        }
+
+        float logpdf(VectorType data) const {
+            double mhDist = MahalanobisDistance(data);
+            double detCov = 1;
+            for (unsigned i = 0; i < covariance.rows(); ++i) {
+                detCov *= covariance(i,i);
+            }
+            double normalizer = -0.5*mean.size() * std::log(2*M_PI) -0.5 * detCov;
+            return -0.5 * mhDist + normalizer;
         }
 
         float MahalanobisDistance(VectorType data) const {

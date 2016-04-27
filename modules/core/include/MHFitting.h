@@ -284,32 +284,31 @@ namespace statismo {
           // DistributionEvaluatorInterface interface
       public:
           virtual double evalSample(const ChainSampleType& currentSample) {
-              double distance = 0.0;
+              double loglikelihood = 0.0;
 
               // TODO we need to take rotations into accout
               typename RepresenterType::DatasetPointerType  sample =m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
 
               statismo::ASMFittingConfiguration asmFitConfig(3,5,3);
 
-              ASMFittingStepType* step = ASMFittingStepType::Create(asmFitConfig, m_asmodel, currentSample.GetCoefficients(), currentSample.GetRigidTransform(),m_image,m_sampler);
-                step->Perform();
+              FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
+
               for (unsigned i = 0; i < m_asmodel->GetProfiles().size(); ++i) {
                     ASMProfile profile = m_asmodel->GetProfiles()[i];
                   long ptId = profile.GetPointId();
-                  std::cout << "image valua at point " << m_image->Evaluate(sample->GetPoint(ptId)) << std::endl;
+
                   statismo::VectorType features;
-                  std::cout << "before extracting feature " << std::endl;
-                  m_sampler->Sample(sample->GetPoint(ptId));
-                  bool ok = m_asmodel->GetFeatureExtractor()->ExtractFeatures(features, m_image, sample->GetPoint(ptId));
-                  std::cout << "after feature was extracted " << std::endl;
+
+
+                  bool ok = fe->ExtractFeatures(features, m_image, sample->GetPoint(ptId));
+
                   if (ok) {
-                      float featureDistance = profile.GetDistribution().MahalanobisDistance(features);
-                      distance += featureDistance;
+                      loglikelihood += profile.GetDistribution().logpdf(features);
                   }
               }
               // evaluate profile points at ...
 
-              return -distance;
+              return loglikelihood;
 
           }
       private:
