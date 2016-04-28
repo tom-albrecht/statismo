@@ -283,7 +283,7 @@ namespace statismo {
         public:
           PointEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
             m_targetPoints(targetPoints),
-            m_smodel(asmodel->GetStatisticalModel()),
+            m_asmodel(asmodel),
             m_eval(evaluator),
             m_closestPoint(closestPoint)
 
@@ -295,7 +295,9 @@ namespace statismo {
             double distance = 0.0;
 
             // TODO to draw full sample only for landmarks is inefficient
-             typename RepresenterType::DatasetPointerType  sample =m_smodel->DrawSample(currentSample.GetCoefficients());
+              typename RepresenterType::DatasetPointerType  sampleShape = m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
+              typename RepresenterType::DatasetPointerType sample = m_asmodel->GetRepresenter()->TransformMesh(sampleShape, currentSample.GetRigidTransform());
+
 
             for( int i = 0; i < m_targetPoints.size(); ++i) {
 
@@ -309,7 +311,7 @@ namespace statismo {
           }
         private:
           const vector< PointType > m_targetPoints;
-          const StatisticalModelType* m_smodel;
+          const ActiveShapeModelType* m_asmodel;
           PositionEvaluator* m_eval;
           const ClosestPointType* m_closestPoint;
 
@@ -333,8 +335,10 @@ namespace statismo {
           virtual double evalSample(const ChainSampleType& currentSample) {
               double loglikelihood = 0.0;
 
-              // TODO we need to take rotations into accout
-              typename RepresenterType::DatasetPointerType  sample =m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
+
+              typename RepresenterType::DatasetPointerType  sampleShape = m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
+              typename RepresenterType::DatasetPointerType sample = m_asmodel->GetRepresenter()->TransformMesh(sampleShape, currentSample.GetRigidTransform());
+
 
               FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
 
