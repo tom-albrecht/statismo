@@ -52,8 +52,8 @@ int main(int argc, char *argv[]) {
     statismo::ASMFeatureExtractorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMNormalDirectionFeatureExtractorFactory<MeshType, ImageType>::GetInstance());
     statismo::ASMImagePreprocessorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMGaussianGradientImagePreprocessorFactory<MeshType, ImageType>::GetInstance());
 
-//    std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
-    std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
+    std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
+    //std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
 
     ActiveShapeModelType::Pointer aModel = ActiveShapeModelType::New();
     RepresenterType::Pointer representer = RepresenterType::New();
@@ -80,8 +80,8 @@ int main(int argc, char *argv[]) {
     // read and preprocess image
     ImageReaderType::Pointer reader = ImageReaderType::New();
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
-    //reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
-    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
+    reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
+//    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
 
     reader->Update();
     ImageType::Pointer image = reader->GetOutput();
@@ -101,12 +101,12 @@ int main(int argc, char *argv[]) {
 ////    for (unsigned i = 0; i < mesh->GetNumberOfPoints(); ++i) {
 //        if (i % 100 == 0) linePoints.push_back(mesh->GetPoint(i));
 //    }
-     PointType t1,t2;
-
-    t1[0] = 70.56260681152344f; t1[1]=-59.54972839355469f; t1[2] = 381.9784240722656f;
-    t2[0] = 19.4894962310791f; t2[1] = -48.284393310546875f; t2[2] = 660.880126953125f;
-    linePoints.push_back(t1);
-    linePoints.push_back(t2);
+//     PointType t1,t2;
+//
+//    t1[0] = 70.56260681152344f; t1[1]=-59.54972839355469f; t1[2] = 381.9784240722656f;
+//    t2[0] = 19.4894962310791f; t2[1] = -48.284393310546875f; t2[2] = 660.880126953125f;
+//    linePoints.push_back(t1);
+//    linePoints.push_back(t2);
 
 
 

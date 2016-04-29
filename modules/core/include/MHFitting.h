@@ -319,6 +319,40 @@ namespace statismo {
 
 
 
+      struct ASMLikelihoodForChunk {
+
+
+          ASMLikelihoodForChunk(double _aggregatedLikelihood): aggregatedLikelihood(_aggregatedLikelihood) {}
+
+          double aggregatedLikelihood;
+
+          // emulate move semantics, as boost::async seems to depend on it.
+          ASMLikelihoodForChunk& operator=(BOOST_COPY_ASSIGN_REF(ASMLikelihoodForChunk) rhs) { // Copy assignment
+              if (&rhs != this) {
+                  copyMembers(rhs);
+              }
+              return *this;
+          }
+
+          ASMLikelihoodForChunk(BOOST_RV_REF(ASMLikelihoodForChunk) that) { //Move constructor
+              copyMembers(that);
+          }
+          ASMLikelihoodForChunk& operator=(BOOST_RV_REF(ASMLikelihoodForChunk) rhs) { //Move assignment
+              if (&rhs != this) {
+                  copyMembers(rhs);
+              }
+              return *this;
+          }
+      private:
+      BOOST_COPYABLE_AND_MOVABLE(ASMLikelihoodForChunk)
+          void copyMembers(const ASMLikelihoodForChunk& that) {
+              aggregatedLikelihood = that.aggregatedLikelihood;
+          }
+      };
+
+
+
+
       template <class T>
       class ASMEvaluator : public DistributionEvaluator< ChainSampleType > {
         typedef  ASMPreprocessedImage<typename RepresenterType::DatasetType> PreprocessedImageType;
@@ -337,22 +371,54 @@ namespace statismo {
 
 
               typename RepresenterType::DatasetPointerType  sampleShape = m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
-              typename RepresenterType::DatasetPointerType sample = m_asmodel->GetRepresenter()->TransformMesh(sampleShape, currentSample.GetRigidTransform());
+              typename RepresenterType::DatasetPointerType currentModelInstance = m_asmodel->GetRepresenter()->TransformMesh(sampleShape, currentSample.GetRigidTransform());
 
-
-              FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
 
               unsigned numProfilePointsUsed = 500;
               unsigned step = m_asmodel->GetProfiles().size() / numProfilePointsUsed;
-              for (unsigned i = 0; i < numProfilePointsUsed; i += step) {
+              FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
 
-                    ASMProfile profile = m_asmodel->GetProfiles()[i];
+              unsigned numChunks = boost::thread::hardware_concurrency() + 1;
+              std::vector<boost::future<ASMLikelihoodForChunk>* > futvec;
+
+
+              for (unsigned i = 0; i < numChunks; ++i) {
+                  unsigned profileIdStart = m_asmodel->GetProfiles().size() / numChunks  * i;
+                  unsigned profileIdEnd = m_asmodel->GetProfiles().size() / numChunks * (i + 1);
+
+                  boost::future<ASMLikelihoodForChunk> *fut = new boost::future<ASMLikelihoodForChunk>(
+                          boost::async(boost::launch::async, boost::bind(&ASMEvaluator<T>::evalSampleForProfiles,
+                                                                         this, profileIdStart, profileIdEnd, step, fe,
+                                                                         currentModelInstance, currentSample)));
+                  futvec.push_back(fut);
+              }
+              for (unsigned i = 0; i < futvec.size(); i++) {
+                  loglikelihood += futvec[i]->get().aggregatedLikelihood;
+
+                  delete futvec[i];
+              }
+
+
+              return loglikelihood;
+
+          }
+
+
+          ASMLikelihoodForChunk evalSampleForProfiles(unsigned profileIdStart, unsigned profileIdEnd, unsigned step, FeatureExtractorType* _fe, typename RepresenterType::DatasetPointerType currentModelInstance, const ChainSampleType& currentSample) {
+
+              FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
+
+              double loglikelihood = 0.0;
+
+              for (unsigned i = profileIdStart; i < profileIdEnd; i += step) {
+
+                  ASMProfile profile = m_asmodel->GetProfiles()[i];
                   long ptId = profile.GetPointId();
 
                   statismo::VectorType features;
 
 
-                  bool ok = fe->ExtractFeatures(features, m_image, sample->GetPoint(ptId));
+                  bool ok = fe->ExtractFeatures(features, m_image, currentModelInstance->GetPoint(ptId));
 
                   if (ok) {
                       loglikelihood += profile.GetDistribution().logpdf(features);
@@ -360,9 +426,11 @@ namespace statismo {
               }
               // evaluate profile points at ...
 
-              return loglikelihood;
-
+              fe->Delete();
+              ASMLikelihoodForChunk asmLikelihoodForChunk(loglikelihood);
+              asmLikelihoodForChunk;
           }
+
       private:
           const ActiveShapeModelType* m_asmodel;
           PreprocessedImageType* m_image;
@@ -405,7 +473,10 @@ namespace statismo {
             vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
             gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.2);
             gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.2);
-              gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.6);
+              gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFinest,0.6);
+
+
+
 
               RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector,rGen);
 
