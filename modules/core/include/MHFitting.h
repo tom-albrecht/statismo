@@ -322,12 +322,13 @@ namespace statismo {
       struct ASMLikelihoodForChunk {
 
 
-          ASMLikelihoodForChunk(double _aggregatedLikelihood): aggregatedLikelihood(_aggregatedLikelihood) {}
+          ASMLikelihoodForChunk(double _aggregatedLikelihood): aggregatedLikelihood(_aggregatedLikelihood) {  }
 
           double aggregatedLikelihood;
 
           // emulate move semantics, as boost::async seems to depend on it.
           ASMLikelihoodForChunk& operator=(BOOST_COPY_ASSIGN_REF(ASMLikelihoodForChunk) rhs) { // Copy assignment
+
               if (&rhs != this) {
                   copyMembers(rhs);
               }
@@ -367,7 +368,7 @@ namespace statismo {
           // DistributionEvaluatorInterface interface
       public:
           virtual double evalSample(const ChainSampleType& currentSample) {
-              double loglikelihood = 0.0;
+
 
 
               typename RepresenterType::DatasetPointerType  sampleShape = m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
@@ -376,9 +377,9 @@ namespace statismo {
 
               unsigned numProfilePointsUsed = 500;
               unsigned step = m_asmodel->GetProfiles().size() / numProfilePointsUsed;
-              FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
+//              FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
 
-              unsigned numChunks = boost::thread::hardware_concurrency() + 1;
+              unsigned numChunks =  boost::thread::hardware_concurrency() + 1;
               std::vector<boost::future<ASMLikelihoodForChunk>* > futvec;
 
 
@@ -388,13 +389,17 @@ namespace statismo {
 
                   boost::future<ASMLikelihoodForChunk> *fut = new boost::future<ASMLikelihoodForChunk>(
                           boost::async(boost::launch::async, boost::bind(&ASMEvaluator<T>::evalSampleForProfiles,
-                                                                         this, profileIdStart, profileIdEnd, step, fe,
+                                                                         this, profileIdStart, profileIdEnd, step,// fe,
                                                                          currentModelInstance, currentSample)));
                   futvec.push_back(fut);
               }
-              for (unsigned i = 0; i < futvec.size(); i++) {
-                  loglikelihood += futvec[i]->get().aggregatedLikelihood;
 
+
+              double loglikelihood = 0.0;
+              for (unsigned i = 0; i < futvec.size(); i++) {
+
+                  ASMLikelihoodForChunk likelihoodForChunk = futvec[i]->get();
+                  loglikelihood += likelihoodForChunk.aggregatedLikelihood;
                   delete futvec[i];
               }
 
@@ -404,7 +409,7 @@ namespace statismo {
           }
 
 
-          ASMLikelihoodForChunk evalSampleForProfiles(unsigned profileIdStart, unsigned profileIdEnd, unsigned step, FeatureExtractorType* _fe, typename RepresenterType::DatasetPointerType currentModelInstance, const ChainSampleType& currentSample) {
+          ASMLikelihoodForChunk evalSampleForProfiles(unsigned profileIdStart, unsigned profileIdEnd, unsigned step, typename RepresenterType::DatasetPointerType currentModelInstance, const ChainSampleType& currentSample) {
 
               FeatureExtractorType* fe = m_asmodel->GetFeatureExtractor()->CloneForTarget(m_asmodel,currentSample.GetCoefficients(),currentSample.GetRigidTransform());
 
@@ -422,13 +427,14 @@ namespace statismo {
 
                   if (ok) {
                       loglikelihood += profile.GetDistribution().logpdf(features);
+                  } else {
+                      std::cout << "feasutre not ok " << std::endl;
                   }
               }
               // evaluate profile points at ...
-
               fe->Delete();
-              ASMLikelihoodForChunk asmLikelihoodForChunk(loglikelihood);
-              asmLikelihoodForChunk;
+//              ASMLikelihoodForChunk asmLikelihoodForChunk(loglikelihood);
+              return ASMLikelihoodForChunk(loglikelihood);
           }
 
       private:
@@ -474,9 +480,6 @@ namespace statismo {
             gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.2);
             gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.2);
               gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFinest,0.6);
-
-
-
 
               RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector,rGen);
 
