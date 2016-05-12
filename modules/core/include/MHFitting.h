@@ -192,6 +192,7 @@ namespace statismo {
 
             ASMFittingStepType* asmFittingStep = ASMFittingStepType::Create(m_fittingConfiguration, m_asmodel, currentSample.GetCoefficients(), currentSample.GetRigidTransform(), m_target, m_sampler);
             ASMFittingResult<RigidTransformPointerType> result = asmFittingStep->Perform();
+	    
             proposal = ChainSampleType(result.GetCoefficients(),result.GetRigidTransform());
           }
           virtual double transitionProbability(const ChainSampleType& start, const ChainSampleType& end){
@@ -513,8 +514,8 @@ namespace statismo {
               } else {
                   evaluatorList.push_back(asmEvaluator);
                   evaluatorList.push_back(modelPriorEvaluator);
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(gaussMixtureProposal,0.9));
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.1));
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(gaussMixtureProposal,1.0));
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.0));
 
               }
               RandomProposal<ChainSampleType >* finalProposal = new RandomProposal<ChainSampleType >(finalProposalVector,rGen);
