@@ -41,6 +41,7 @@
 #include "MultiVariateNormalDistribution.h"
 #include "MeshRepresenter.h"
 #include "StatisticalModel.h"
+#include "StatismoIO.h"
 #include "ASMProfile.h"
 #include "ASMFeatureExtractor.h"
 #include "ASMImagePreprocessor.h"
@@ -135,7 +136,7 @@ namespace statismo {
 
             H5::Group rootGroup = file.openGroup("/");
 
-            StatisticalModelType *statisticalModel = StatisticalModel<TPointSet>::Load(representer, rootGroup);
+            StatisticalModelType *statisticalModel = statismo::IO<TPointSet>::LoadStatisticalModel(representer, rootGroup);
 
             H5::Group asmGroup = rootGroup.openGroup("activeShapeModel");
             H5::Group feGroup = asmGroup.openGroup("featureExtractor");
