@@ -178,7 +178,7 @@ namespace statismo {
               }
               //currentSample.GetRigidTransform()->SetParameters()
                 newRigidTransform->SetParameters(newRigidParams);
-            proposal = ChainSampleType(newParams, newRigidTransform);
+            proposal = ChainSampleType(newParams, currentSample.GetRigidTransform());
           }
           virtual double transitionProbability(const ChainSampleType& start, const ChainSampleType& end){
             return 0.0;
@@ -281,21 +281,25 @@ namespace statismo {
               // TODO to draw full sample only for landmarks is inefficient
               typename RepresenterType::DatasetPointerType  sampleShape = m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
               typename RepresenterType::DatasetPointerType sample = m_asmodel->GetRepresenter()->TransformMesh(sampleShape, currentSample.GetRigidTransform());
-              std::cout << currentSample.GetRigidTransform()->GetParameters() << std::endl;
+              //std::cout << currentSample.GetRigidTransform()->GetParameters() << std::endl;
 
 
               typename RepresenterType::DomainType::DomainPointsListType  points = m_asmodel->GetRepresenter()->GetDomain().GetDomainPoints();
               bool isInsideBone = false;
+              double increase = -std::numeric_limits<double>::max() / points.size();
+              unsigned numInBone = 0;
               for( int i = 0; i < points.size(); ++i) {
                   //statismo::VectorType normal = m_closestPoint->normalAtPoint(sample, m_tra)
                   //PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]).first;
                   //double d = m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
 
 
-                  if (m_closestPoint->huAtPoint(sampleShape, i) > 1400 || m_closestPoint->huAtPoint(sample, i) < 500 )   {
+                  if (m_closestPoint->huAtPoint(sample, i) > 1150 || m_closestPoint->huAtPoint(sample, i) < 400 )   {
 //                      isInsideBone = true;
 //                      break;
-                      distance += -9999;
+
+                      distance += increase;
+                      numInBone +=  1;
                   }
                   else {
                       distance += 0;
@@ -308,7 +312,7 @@ namespace statismo {
 //              } else {
 //                  distance = 0;
 //              }
-              std::cout << "likelihood is " << distance << std::endl;
+//              std::cout << "number in bone is " << numInBone << std::endl;
               return distance;
 
           }
@@ -550,11 +554,11 @@ namespace statismo {
             RandomGenerator* rGen = new RandomGenerator(42);
             ChainSampleType init = ChainSampleType(coeffs,transform);
 
-            // Proposals // TODO: add ASMProposal
+
             GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0.2,rGen);
-            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.05,rGen);
-              GaussianModelUpdate* poseProposalFinest = new GaussianModelUpdate(0.01,rGen);
-              ASMModelUpdate* asmProposal = new ASMModelUpdate(config.GetAsmFittingconfiguration(), asmodel, targetImage, asmPointSampler);
+            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.01,rGen);
+              GaussianModelUpdate* poseProposalFinest = new GaussianModelUpdate(0.05,rGen);
+            ASMModelUpdate* asmProposal = new ASMModelUpdate(config.GetAsmFittingconfiguration(), asmodel, targetImage, asmPointSampler);
 
 
             vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
@@ -564,54 +568,60 @@ namespace statismo {
 
               RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector,rGen);
 
-            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.1);
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
             ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
 //
 
+              InLungOrBoneEvaluator<T>* huEvaluator = new InLungOrBoneEvaluator<T>(representer, closestPoint, asmodel);
+
+              std::vector<DistributionEvaluator<ChainSampleType >*> huEvaluatorList;
+              huEvaluatorList.push_back(huEvaluator);
+              huEvaluatorList.push_back(modelPriorEvaluator);
+
 
               QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
-              MarkovChain<ChainSampleType >* landMarkchain =  new MetropolisHastings<ChainSampleType >(gaussMixtureProposal, pointEval, ql, init, rGen );
-              MarkovChainProposal<ChainSampleType>* lmChainProposal = new MarkovChainProposal<ChainSampleType>(landMarkchain, 10);
+              MarkovChain<ChainSampleType >* huChain =  new MetropolisHastings<ChainSampleType >(gaussMixtureProposal, new ProductEvaluator<ChainSampleType>(huEvaluatorList), ql, init, rGen );
+              MarkovChainProposal<ChainSampleType>* huChainProposal = new MarkovChainProposal<ChainSampleType>(huChain, 10);
+
+
+
+
+              std::vector<DistributionEvaluator<ChainSampleType >*> lmAndHuEvaluatorList;
+              lmAndHuEvaluatorList.push_back(pointEval);
+              lmAndHuEvaluatorList.push_back(huEvaluator);
+              lmAndHuEvaluatorList.push_back(modelPriorEvaluator);
+
+              MarkovChain<ChainSampleType >* lmChain =  new MetropolisHastings<ChainSampleType >(huChainProposal, new ProductEvaluator<ChainSampleType>(lmAndHuEvaluatorList), ql, init, rGen );
+              MarkovChainProposal<ChainSampleType>* huAndLMProposal = new MarkovChainProposal<ChainSampleType>(lmChain, 10);
 
 
 //            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 5.0);
 //            PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
             ASMEvaluator<T>* asmEvaluator = new ASMEvaluator<T>(asmodel, targetImage, asmPointSampler);
 
-              std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList;
+              std::vector<DistributionEvaluator<ChainSampleType >*> completeEvaluatorList;
               vector< typename RandomProposal< ChainSampleType >::GeneratorPair> finalProposalVector;
 
-                InLungOrBoneEvaluator<T>* huEvaluator = new InLungOrBoneEvaluator<T>(representer, closestPoint, asmodel);
-              if (targetPoints.size() > 0) {
-                  std::cout << "evaluating with point constraints " << std::endl;
-                  evaluatorList.push_back(pointEval);
-                  evaluatorList.push_back(asmEvaluator);
-                  evaluatorList.push_back(huEvaluator);
-                  evaluatorList.push_back(modelPriorEvaluator);
 
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(lmChainProposal,0.99));
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.05));
+              completeEvaluatorList.push_back(pointEval);
+              completeEvaluatorList.push_back(asmEvaluator);
+              completeEvaluatorList.push_back(huEvaluator);
+              completeEvaluatorList.push_back(modelPriorEvaluator);
 
-              } else {
-                  evaluatorList.push_back(asmEvaluator);
-                  evaluatorList.push_back(huEvaluator);
-                  evaluatorList.push_back(modelPriorEvaluator);
+              finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(huAndLMProposal,0.99));
+              finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.01));
 
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(gaussMixtureProposal,1.0));
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.05));
 
-              }
               RandomProposal<ChainSampleType >* finalProposal = new RandomProposal<ChainSampleType >(finalProposalVector,rGen);
 
 
 
-              ProductEvaluator<ChainSampleType >* productEvaluator = new ProductEvaluator<ChainSampleType >(evaluatorList);
-
             // markov chain
               BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
 
-              MarkovChain<ChainSampleType >* chain = new MetropolisHastings<ChainSampleType>(finalProposal, productEvaluator, ql, init, rGen);
+              // WARNING!  we currently do not use the ASM proposal
+              MarkovChain<ChainSampleType >* chain = new MetropolisHastings<ChainSampleType>(huAndLMProposal, new ProductEvaluator<ChainSampleType >(lmAndHuEvaluatorList), ql, init, rGen);
 
             return chain;
           }
@@ -678,4 +688,5 @@ namespace statismo {
 }
 
 #endif //STATISMO_ASMFITTING_H
+
 

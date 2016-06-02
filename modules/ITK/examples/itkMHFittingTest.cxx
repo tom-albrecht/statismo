@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     statismo::ASMImagePreprocessorFactory<MeshType, ImageType>::RegisterImplementation(itk::ASMGaussianGradientImagePreprocessorFactory<MeshType, ImageType>::GetInstance());
 
     //std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
-    std::string modelname("//home/luetma00/data/esophagus/asm-pca.h5");
+    std::string modelname("//tmp/fancyasm.h5");
     //std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
 
     ActiveShapeModelType::Pointer aModel = ActiveShapeModelType::New();
