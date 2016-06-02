@@ -84,9 +84,11 @@ namespace statismo {
 
 
     template <class MeshType, class PointType>
-    class ClosestPoint {
+    class MeshOperations {
     public:
-        virtual PointType findClosestPoint(MeshType mesh, PointType pt) const = 0;
+        virtual std::pair<PointType, long> findClosestPoint(MeshType mesh, PointType pt) const = 0;
+        virtual VectorType normalAtPoint(MeshType mesh, PointType pt) const = 0;
+        virtual short huAtPoint(MeshType mesh, long ptId) const = 0;
     };
 
   template<typename RigidTransformPointerType>
@@ -162,7 +164,21 @@ namespace statismo {
                 newParams[i] = shapeParams[i] + rgen->normalDbl() * sigma;
             }
 
-            proposal = ChainSampleType(newParams,currentSample.GetRigidTransform());
+              // !FIXME this uses itk functionality (of the parameter vector type)
+              typename itk::Rigid3DTransform<float>::Pointer newRigidTransform = static_cast<itk::Rigid3DTransform<float>* >(currentSample.GetRigidTransform()->Clone().GetPointer());
+              itk::OptimizerParameters<float> newRigidParams = newRigidTransform->GetParameters();
+
+              for (unsigned i = 0; i < newRigidTransform->GetNumberOfParameters(); ++i) {
+                  if (i < 3) {// rotation parameters
+                    newRigidParams[i] += rgen->normalDbl() * 0.0001;
+                  }
+                  else { // tranlation scale
+                      newRigidParams[i] += rgen->normalDbl() * 0.01;
+                  }
+              }
+              //currentSample.GetRigidTransform()->SetParameters()
+                newRigidTransform->SetParameters(newRigidParams);
+            proposal = ChainSampleType(newParams, newRigidTransform);
           }
           virtual double transitionProbability(const ChainSampleType& start, const ChainSampleType& end){
             return 0.0;
@@ -192,8 +208,10 @@ namespace statismo {
 
             ASMFittingStepType* asmFittingStep = ASMFittingStepType::Create(m_fittingConfiguration, m_asmodel, currentSample.GetCoefficients(), currentSample.GetRigidTransform(), m_target, m_sampler);
             ASMFittingResult<RigidTransformPointerType> result = asmFittingStep->Perform();
-	    
-            proposal = ChainSampleType(result.GetCoefficients(),result.GetRigidTransform());
+              statismo::VectorType newCoeffs = result.GetCoefficients();
+              statismo::VectorType currCoeffs = currentSample.GetCoefficients();
+              statismo::VectorType newProposal = currCoeffs + (newCoeffs - currCoeffs) * 0.1;
+            proposal = ChainSampleType(newProposal,result.GetRigidTransform());
           }
           virtual double transitionProbability(const ChainSampleType& start, const ChainSampleType& end){
             return 0.0;
@@ -244,6 +262,67 @@ namespace statismo {
       };
 
 
+      template <class T>
+      class InLungOrBoneEvaluator : public DistributionEvaluator< ChainSampleType > {
+          typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
+
+      public:
+          InLungOrBoneEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, ActiveShapeModelType* asmodel) :
+                  m_asmodel(asmodel),
+                  m_closestPoint(closestPoint)
+
+          {}
+
+          // DistributionEvaluatorInterface interface
+      public:
+          virtual double evalSample(const ChainSampleType& currentSample) {
+              double distance = 0.0;
+
+              // TODO to draw full sample only for landmarks is inefficient
+              typename RepresenterType::DatasetPointerType  sampleShape = m_asmodel->GetStatisticalModel()->DrawSample(currentSample.GetCoefficients());
+              typename RepresenterType::DatasetPointerType sample = m_asmodel->GetRepresenter()->TransformMesh(sampleShape, currentSample.GetRigidTransform());
+              std::cout << currentSample.GetRigidTransform()->GetParameters() << std::endl;
+
+
+              typename RepresenterType::DomainType::DomainPointsListType  points = m_asmodel->GetRepresenter()->GetDomain().GetDomainPoints();
+              bool isInsideBone = false;
+              for( int i = 0; i < points.size(); ++i) {
+                  //statismo::VectorType normal = m_closestPoint->normalAtPoint(sample, m_tra)
+                  //PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]).first;
+                  //double d = m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
+
+
+                  if (m_closestPoint->huAtPoint(sampleShape, i) > 1400 || m_closestPoint->huAtPoint(sample, i) < 500 )   {
+//                      isInsideBone = true;
+//                      break;
+                      distance += -9999;
+                  }
+                  else {
+                      distance += 0;
+                  }
+              }
+
+//              if (isInsideBone) {
+//                  distance = -std::numeric_limits<double>::infinity();
+//
+//              } else {
+//                  distance = 0;
+//              }
+              std::cout << "likelihood is " << distance << std::endl;
+              return distance;
+
+          }
+      private:
+          const vector< PointType > m_targetPoints;
+          const ActiveShapeModelType* m_asmodel;
+          PositionEvaluator* m_eval;
+          const ClosestPointType* m_closestPoint;
+
+      };
+
+
+
+
       class Gaussian3DPositionDifferenceEvaluator : public PositionEvaluator
       {
         private:
@@ -279,7 +358,7 @@ namespace statismo {
 
       template <class T>
       class PointEvaluator : public DistributionEvaluator< ChainSampleType > {
-          typedef ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
+          typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
 
         public:
           PointEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
@@ -302,7 +381,7 @@ namespace statismo {
 
             for( int i = 0; i < m_targetPoints.size(); ++i) {
 
-              PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]);
+              PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]).first;
               double d = m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
 
                 distance += d;
@@ -441,6 +520,7 @@ namespace statismo {
       private:
           const ActiveShapeModelType* m_asmodel;
           PreprocessedImageType* m_image;
+
           PointSamplerType* m_sampler;
           RandomGenerator* m_rGen;
       };
@@ -457,7 +537,7 @@ namespace statismo {
         public:
           static MarkovChain<ChainSampleType >* buildChain(
                   const Representer<T>* representer,
-                  const ClosestPoint<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
+                  const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
                   MHFittingConfiguration config,
                   ASMPreprocessedImage<typename Representer<T>::DatasetType>* targetImage,
               vector<PointType> targetPoints,
@@ -478,13 +558,13 @@ namespace statismo {
 
 
             vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
-            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.2);
+            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.02);
             gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.2);
               gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFinest,0.6);
 
               RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector,rGen);
 
-            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.1);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,diffEval);
             ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
 //
@@ -502,20 +582,24 @@ namespace statismo {
               std::vector<DistributionEvaluator<ChainSampleType >*> evaluatorList;
               vector< typename RandomProposal< ChainSampleType >::GeneratorPair> finalProposalVector;
 
-
+                InLungOrBoneEvaluator<T>* huEvaluator = new InLungOrBoneEvaluator<T>(representer, closestPoint, asmodel);
               if (targetPoints.size() > 0) {
+                  std::cout << "evaluating with point constraints " << std::endl;
                   evaluatorList.push_back(pointEval);
                   evaluatorList.push_back(asmEvaluator);
+                  evaluatorList.push_back(huEvaluator);
                   evaluatorList.push_back(modelPriorEvaluator);
 
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(lmChainProposal,0.9));
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.1));
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(lmChainProposal,0.99));
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.05));
 
               } else {
                   evaluatorList.push_back(asmEvaluator);
+                  evaluatorList.push_back(huEvaluator);
                   evaluatorList.push_back(modelPriorEvaluator);
+
                   finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(gaussMixtureProposal,1.0));
-                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.0));
+                  finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.05));
 
               }
               RandomProposal<ChainSampleType >* finalProposal = new RandomProposal<ChainSampleType >(finalProposalVector,rGen);

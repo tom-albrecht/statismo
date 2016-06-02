@@ -48,16 +48,26 @@
 #include "itkPointsLocator.h"
 #include <vector>
 #include "itkStandardMeshRepresenter.h"
+#include "itkLinearInterpolateImageFunction.h"
 
 namespace itk {
 
+    typedef itk::Image<float, 3> ImageType;
+
     typedef itk::StandardMeshRepresenter<float, 3> RepresenterType;
 
-    class itkMeshClosestPoint : public statismo::ClosestPoint<RepresenterType::DatasetPointerType, RepresenterType::PointType> {
+
+    class itkMeshClosestPoint : public statismo::MeshOperations<RepresenterType::DatasetPointerType, RepresenterType::PointType> {
         typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
+        typedef TriangleMeshAdapter<typename RepresenterType::MeshType::PixelType> MeshAdapterType;
+        typedef typename MeshAdapterType::PointNormalType PointNormalType;
+        typedef itk::LinearInterpolateImageFunction<ImageType> InterpolatorType;
 
     public:
-        itkMeshClosestPoint() {}
+        itkMeshClosestPoint(ImageType::Pointer image) : m_image(image), m_interpolator(InterpolatorType::New()) {
+
+            m_interpolator->SetInputImage(image);
+        }
 
 
         void InitializePointLocator(RepresenterType::MeshPointerType mesh) const {
@@ -66,19 +76,48 @@ namespace itk {
             m_ptLocator->Initialize();
         };
 
-        virtual RepresenterType::PointType findClosestPoint(RepresenterType::MeshPointerType mesh, RepresenterType::PointType pt) const {
+        virtual std::pair<RepresenterType::PointType, long> findClosestPoint(RepresenterType::MeshPointerType mesh, RepresenterType::PointType pt) const {
             if (mesh.GetPointer() != m_cachedMesh.GetPointer()) {
                 m_cachedMesh = mesh;
                 InitializePointLocator(mesh);
             }
 
             long ptId = m_ptLocator->FindClosestPoint(pt);
-            return mesh->GetPoints()->GetElement(ptId);
+            return std::make_pair(mesh->GetPoints()->GetElement(ptId), ptId);
         }
 
-    private:
+        virtual statismo::VectorType normalAtPoint(RepresenterType::MeshPointerType mesh, RepresenterType::PointType pt) const {
+            if (m_normals.GetPointer() == 0) {
+                MeshAdapterType::Pointer meshAdapter = MeshAdapterType::New();
+                meshAdapter->SetMesh(mesh);
+                m_normals = meshAdapter->GetPointNormals();
+            }
+
+            long id = this->findClosestPoint(mesh, pt).second;
+            PointNormalType normal = m_normals->GetElement(id);
+            statismo::VectorType normalAsStatismoVec(3) ;
+            normalAsStatismoVec(0) =  normal.GetElement(0);//
+            normalAsStatismoVec(1) =  normal.GetElement(1);//
+            normalAsStatismoVec(2) =  normal.GetElement(2);//
+            return normalAsStatismoVec;
+        }
+
+
+        virtual short huAtPoint(RepresenterType::MeshPointerType mesh, long id) const {
+            RepresenterType::PointType pt = mesh->GetPoint(id);
+            if (m_interpolator->IsInsideBuffer(pt))
+                return m_interpolator->Evaluate(pt);
+            else
+                return 0;
+
+        }
+
+            private:
+        ImageType::Pointer m_image;
+        InterpolatorType::Pointer m_interpolator;
         mutable PointsLocatorType::Pointer m_ptLocator;
         mutable RepresenterType::MeshPointerType m_cachedMesh;
+        mutable MeshAdapterType::PointNormalsContainerPointer m_normals;
     };
 
 
@@ -156,7 +195,9 @@ namespace itk {
         typedef typename ActiveShapeModel<TPointSet, TImage>::ImplType::RepresenterType::PointType PointType;
         typedef typename ActiveShapeModel<TPointSet, TImage>::ImplType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
         typedef typename TPointSet::Pointer PointSetPointerType;
-        typedef typename statismo::ASMPreprocessedImage<TPointSet> *ImagePointerType;
+        typedef itk::Image<float, 3> ImageType;
+        typedef typename itk::Image<float, 3>::Pointer ImagePointerType;
+        typedef typename statismo::ASMPreprocessedImage<TPointSet> *PreprocessedImagePointerType;
         typedef statismo::MHFittingConfiguration ConfigurationType;
         typedef typename ASMPointSampler<TPointSet, TImage>::Pointer SamplerPointerType;
         typedef statismo::MHFittingStep<TPointSet, TImage> ImplType;
@@ -165,6 +206,7 @@ namespace itk {
         MHFittingStep() : /* m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) */ m_chain(0) { }
 
         void init(ImagePointerType targetImage,
+                  PreprocessedImagePointerType preprocessedTargetImage,
                   const std::vector<PointType>& targetPoints,
                   ModelPointerType model,
                   SamplerPointerType sampler,
@@ -188,8 +230,8 @@ namespace itk {
 //            statismo::VectorType coeffs
 
             typedef typename statismo::mcmc<TPointSet,TImage>::template BasicSampling<TPointSet> BasicSampingType;
-            itkMeshClosestPoint* closestPointEv = new itkMeshClosestPoint() ;// TODO this is a memory leak - there must be a better way
-            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, configuration, targetImage, targetPoints, model->GetstatismoImplObj(), m_sampler, transform,coeffs);
+            itkMeshClosestPoint* closestPointEv = new itkMeshClosestPoint(targetImage) ;// TODO this is a memory leak - there must be a better way
+            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, configuration, preprocessedTargetImage, targetPoints, model->GetstatismoImplObj(), m_sampler, transform,coeffs);
         }
 
 
