@@ -49,6 +49,7 @@
 #include <vector>
 #include "itkStandardMeshRepresenter.h"
 #include "itkLinearInterpolateImageFunction.h"
+#include "itkTriangleMeshAdapter.h"
 
 namespace itk {
 
@@ -60,7 +61,7 @@ namespace itk {
     class itkMeshClosestPoint : public statismo::MeshOperations<RepresenterType::DatasetPointerType, RepresenterType::PointType> {
         typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
         typedef TriangleMeshAdapter<typename RepresenterType::MeshType::PixelType> MeshAdapterType;
-        typedef typename MeshAdapterType::PointNormalType PointNormalType;
+        typedef MeshAdapterType::PointNormalType PointNormalType;
         typedef itk::LinearInterpolateImageFunction<ImageType> InterpolatorType;
 
     public:
