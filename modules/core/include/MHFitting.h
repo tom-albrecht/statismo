@@ -178,7 +178,7 @@ namespace statismo {
               }
               //currentSample.GetRigidTransform()->SetParameters()
                 newRigidTransform->SetParameters(newRigidParams);
-            proposal = ChainSampleType(newParams, currentSample.GetRigidTransform());
+            proposal = ChainSampleType(newParams, newRigidTransform);
           }
           virtual double transitionProbability(const ChainSampleType& start, const ChainSampleType& end){
             return 0.0;
