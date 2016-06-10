@@ -148,11 +148,12 @@ namespace statismo {
       /*============================================================================*/
       class GaussianModelUpdate : public ProposalGenerator<ChainSampleType > {
         private:
-          double sigma;
+          double sigmaShape;
+          double sigmaPose;
           RandomGenerator* rgen;
 
         public:
-          GaussianModelUpdate( double stepSize, RandomGenerator* rgen ) : sigma(stepSize), rgen(rgen) {}
+          GaussianModelUpdate( double stepSizeShape, double stepSizePose, RandomGenerator* rgen ) : sigmaShape(stepSizeShape), sigmaPose(stepSizePose), rgen(rgen) {}
 
           // ProposalGeneratorInterface interface
         public:
@@ -161,7 +162,7 @@ namespace statismo {
 
               VectorType newParams(shapeParams.size());
             for (unsigned i = 0; i < shapeParams.size(); ++i) {
-                newParams[i] = shapeParams[i] + rgen->normalDbl() * sigma;
+                newParams[i] = shapeParams[i] + rgen->normalDbl() * sigmaShape;
             }
 
               // !FIXME this uses itk functionality (of the parameter vector type)
@@ -170,10 +171,10 @@ namespace statismo {
 
               for (unsigned i = 0; i < newRigidTransform->GetNumberOfParameters(); ++i) {
                   if (i < 3) {// rotation parameters
-                    newRigidParams[i] += rgen->normalDbl() * 0.0001;
+                    newRigidParams[i] += rgen->normalDbl() * 0.01 * sigmaPose;
                   }
                   else { // tranlation scale
-                      newRigidParams[i] += rgen->normalDbl() * 0.01;
+                      newRigidParams[i] += rgen->normalDbl() * sigmaPose;
                   }
               }
               //currentSample.GetRigidTransform()->SetParameters()
@@ -555,16 +556,16 @@ namespace statismo {
             ChainSampleType init = ChainSampleType(coeffs,transform);
 
 
-            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0.2,rGen);
-            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.01,rGen);
-              GaussianModelUpdate* poseProposalFinest = new GaussianModelUpdate(0.05,rGen);
-            ASMModelUpdate* asmProposal = new ASMModelUpdate(config.GetAsmFittingconfiguration(), asmodel, targetImage, asmPointSampler);
+            GaussianModelUpdate* poseAndModelProposalRough = new GaussianModelUpdate(0.2, 0.2, rGen);
+            GaussianModelUpdate* poseAndModelProposalFine = new GaussianModelUpdate(0.05, 0.05, rGen);
+              GaussianModelUpdate* poseAndModelProposalFinest = new GaussianModelUpdate(0.01, 0.01, rGen);
+            //ASMModelUpdate* asmProposal = new ASMModelUpdate(config.GetAsmFittingconfiguration(), asmodel, targetImage, asmPointSampler);
 
 
             vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
-            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalRough,0.02);
-            gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFine,0.2);
-              gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*,double>(poseProposalFinest,0.6);
+            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*,double>(poseAndModelProposalRough,0.02);
+            gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*,double>(poseAndModelProposalFine,0.2);
+              gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*,double>(poseAndModelProposalFinest,0.6);
 
               RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector,rGen);
 
@@ -598,33 +599,166 @@ namespace statismo {
 
 //            Gaussian3DPositionDifferenceEvaluator* wideDiffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 5.0);
 //            PointEvaluator<T>* widePointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints,asmodel,wideDiffEval);
-            ASMEvaluator<T>* asmEvaluator = new ASMEvaluator<T>(asmodel, targetImage, asmPointSampler);
+            //ASMEvaluator<T>* asmEvaluator = new ASMEvaluator<T>(asmodel, targetImage, asmPointSampler);
 
-              std::vector<DistributionEvaluator<ChainSampleType >*> completeEvaluatorList;
-              vector< typename RandomProposal< ChainSampleType >::GeneratorPair> finalProposalVector;
-
-
-              completeEvaluatorList.push_back(pointEval);
-              completeEvaluatorList.push_back(asmEvaluator);
-              completeEvaluatorList.push_back(huEvaluator);
-              completeEvaluatorList.push_back(modelPriorEvaluator);
-
-              finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(huAndLMProposal,0.99));
-              finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.01));
+              //std::vector<DistributionEvaluator<ChainSampleType >*> completeEvaluatorList;
+              //vector< typename RandomProposal< ChainSampleType >::GeneratorPair> finalProposalVector;
 
 
-              RandomProposal<ChainSampleType >* finalProposal = new RandomProposal<ChainSampleType >(finalProposalVector,rGen);
+              //completeEvaluatorList.push_back(pointEval);
+              //completeEvaluatorList.push_back(asmEvaluator);
+              //completeEvaluatorList.push_back(huEvaluator);
+              //completeEvaluatorList.push_back(modelPriorEvaluator);
+
+              //finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(huAndLMProposal,0.99));
+              //finalProposalVector.push_back(pair<ProposalGenerator<ChainSampleType >*,double>(asmProposal,0.01));
+
+
+              //RandomProposal<ChainSampleType >* finalProposal = new RandomProposal<ChainSampleType >(finalProposalVector,rGen);
 
 
 
             // markov chain
-              BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
+              //BestMatchLogger<ChainSampleType>* bml = new BestMatchLogger<ChainSampleType>();
 
               // WARNING!  we currently do not use the ASM proposal
               MarkovChain<ChainSampleType >* chain = new MetropolisHastings<ChainSampleType>(huAndLMProposal, new ProductEvaluator<ChainSampleType >(lmAndHuEvaluatorList), ql, init, rGen);
 
             return chain;
           }
+
+          static MarkovChain<ChainSampleType >* buildLmAndHuChain(
+            const Representer<T>* representer,
+            const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
+            vector<PointType> targetPoints,
+            ActiveShapeModelType* asmodel,
+            RigidTransformPointerType transform,
+            statismo::VectorType coeffs) {
+
+            // basics
+            RandomGenerator* rGen = new RandomGenerator(42);
+            ChainSampleType init = ChainSampleType(coeffs, transform);
+
+            GaussianModelUpdate* poseAndShapeProposalRough = new GaussianModelUpdate(0.5, 0.5, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFine = new GaussianModelUpdate(0.2, 0.2, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFinest = new GaussianModelUpdate(0.05, 0.05, rGen);
+
+
+            vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
+            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*, double>(poseAndShapeProposalRough, 0.02);
+            gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*, double>(poseAndShapeProposalFine, 0.2);
+            gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*, double>(poseAndShapeProposalFinest, 0.6);
+
+            RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector, rGen);
+
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.4);
+            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints, asmodel, diffEval);
+            ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
+
+            InLungOrBoneEvaluator<T>* huEvaluator = new InLungOrBoneEvaluator<T>(representer, closestPoint, asmodel);
+
+            std::vector<DistributionEvaluator<ChainSampleType >*> huEvaluatorList;
+            huEvaluatorList.push_back(huEvaluator);
+            huEvaluatorList.push_back(modelPriorEvaluator);
+            
+            QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
+            MarkovChain<ChainSampleType >* huChain = new MetropolisHastings<ChainSampleType >(gaussMixtureProposal, new ProductEvaluator<ChainSampleType>(huEvaluatorList), ql, init, rGen);
+            MarkovChainProposal<ChainSampleType>* huChainProposal = new MarkovChainProposal<ChainSampleType>(huChain, 10);
+            
+
+
+            std::vector<DistributionEvaluator<ChainSampleType >*> lmAndHuEvaluatorList;
+            lmAndHuEvaluatorList.push_back(pointEval);
+            lmAndHuEvaluatorList.push_back(huEvaluator);
+            lmAndHuEvaluatorList.push_back(modelPriorEvaluator);
+
+            MarkovChain<ChainSampleType >* lmAndHuChain = new MetropolisHastings<ChainSampleType >(huChainProposal, new ProductEvaluator<ChainSampleType>(lmAndHuEvaluatorList), ql, init, rGen);
+            MarkovChainProposal<ChainSampleType>* lmAndHuProposal = new MarkovChainProposal<ChainSampleType>(lmAndHuChain, 10);
+            
+            MarkovChain<ChainSampleType >* chain = new MetropolisHastings<ChainSampleType>(lmAndHuProposal, new ProductEvaluator<ChainSampleType >(lmAndHuEvaluatorList), ql, init, rGen);
+
+            return chain;
+          }
+
+          static MarkovChain<ChainSampleType >* buildInitialPoseChain(
+            const Representer<T>* representer,
+            const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
+            vector<PointType> targetPoints,
+            ActiveShapeModelType* asmodel,
+            RigidTransformPointerType transform,
+            statismo::VectorType coeffs) {
+
+            // basics
+            RandomGenerator* rGen = new RandomGenerator(42);
+            ChainSampleType init = ChainSampleType(coeffs, transform);
+
+
+            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0, 1, rGen);
+            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0, 0.3, rGen);
+            GaussianModelUpdate* poseProposalFinest = new GaussianModelUpdate(0, 0.1, rGen);
+
+
+            vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
+            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*, double>(poseProposalRough, 0.02);
+            gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*, double>(poseProposalFine, 0.2);
+            gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*, double>(poseProposalFinest, 0.6);
+
+            RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector, rGen);
+
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.4);
+            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints, asmodel, diffEval);
+            
+            QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
+            MarkovChain<ChainSampleType >* lmChain = new MetropolisHastings<ChainSampleType >(gaussMixtureProposal, pointEval, ql, init, rGen);
+
+            return lmChain;
+          }
+
+
+          static MarkovChain<ChainSampleType >* buildInitialModelChain(
+            const Representer<T>* representer,
+            const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
+            vector<PointType> targetPoints,
+            ActiveShapeModelType* asmodel,
+            RigidTransformPointerType transform,
+            statismo::VectorType coeffs) {
+
+            // basics
+            RandomGenerator* rGen = new RandomGenerator(42);
+            ChainSampleType init = ChainSampleType(coeffs, transform);
+
+
+            GaussianModelUpdate* poseAndShapeProposalRough = new GaussianModelUpdate(1, 1, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFine = new GaussianModelUpdate(0.3, 0.3, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFinest = new GaussianModelUpdate(0.1, 0.1, rGen);
+
+
+            vector< typename RandomProposal< ChainSampleType >::GeneratorPair> gaussMixtureProposalVector(3);
+            gaussMixtureProposalVector[0] = pair<ProposalGenerator<ChainSampleType >*, double>(poseAndShapeProposalRough, 0.02);
+            gaussMixtureProposalVector[1] = pair<ProposalGenerator<ChainSampleType >*, double>(poseAndShapeProposalFine, 0.2);
+            gaussMixtureProposalVector[2] = pair<ProposalGenerator<ChainSampleType >*, double>(poseAndShapeProposalFinest, 0.6);
+
+            RandomProposal<ChainSampleType >* gaussMixtureProposal = new RandomProposal<ChainSampleType >(gaussMixtureProposalVector, rGen);
+
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.4);
+            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints, asmodel, diffEval);
+
+            ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
+
+            std::vector<DistributionEvaluator<ChainSampleType >*> lmAndPriorEvaluatorList;
+            lmAndPriorEvaluatorList.push_back(pointEval);
+            lmAndPriorEvaluatorList.push_back(modelPriorEvaluator);
+
+            QuietLogger <ChainSampleType>* ql = new QuietLogger<ChainSampleType>();
+            MarkovChain<ChainSampleType >* lmChain = new MetropolisHastings<ChainSampleType >(gaussMixtureProposal, new ProductEvaluator<ChainSampleType >(lmAndPriorEvaluatorList), ql, init, rGen);
+
+            return lmChain;
+          }
+
+
+
+
+
       };
 
   };

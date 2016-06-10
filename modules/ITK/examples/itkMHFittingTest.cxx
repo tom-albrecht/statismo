@@ -30,7 +30,7 @@ typedef RepresenterType::PointType PointType;
 typedef itk::StatisticalModel<MeshType> StatisticalModelType;
 typedef itk::Euler3DTransform< float > TransformType;
 
-typedef itk::MHFittingStep<MeshType, ImageType> FittingStepType;
+typedef itk::MHFittingStepper<MeshType, ImageType> FittingStepType;
 typedef itk::MHFittingResult<MeshType, ImageType> FittingResultType;
 
 
