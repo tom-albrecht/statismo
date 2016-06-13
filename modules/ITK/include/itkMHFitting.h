@@ -49,6 +49,7 @@
 #include <vector>
 #include "itkStandardMeshRepresenter.h"
 #include "itkLinearInterpolateImageFunction.h"
+#include "itkTriangleMeshAdapter.h"
 
 namespace itk {
 
@@ -60,7 +61,7 @@ namespace itk {
     class itkMeshClosestPoint : public statismo::MeshOperations<RepresenterType::DatasetPointerType, RepresenterType::PointType> {
         typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
         typedef TriangleMeshAdapter<typename RepresenterType::MeshType::PixelType> MeshAdapterType;
-        typedef typename MeshAdapterType::PointNormalType PointNormalType;
+        typedef MeshAdapterType::PointNormalType PointNormalType;
         typedef itk::LinearInterpolateImageFunction<ImageType> InterpolatorType;
 
     public:
@@ -180,9 +181,9 @@ namespace itk {
 
 
     template<typename TPointSet, typename TImage>
-    class MHFittingStep : public Object {
+    class MHFittingStepper : public Object {
     public:
-        typedef MHFittingStep Self;
+        typedef MHFittingStepper Self;
         typedef Object Superclass;
         typedef SmartPointer <Self> Pointer;
         typedef SmartPointer<const Self> ConstPointer;
@@ -202,8 +203,10 @@ namespace itk {
         typedef typename ASMPointSampler<TPointSet, TImage>::Pointer SamplerPointerType;
         typedef statismo::MHFittingStep<TPointSet, TImage> ImplType;
         typedef MHFittingResult<TPointSet, TImage> ResultType;
+        typedef typename statismo::mcmc<TPointSet, TImage>::template BasicSampling<TPointSet> BasicSamplingType;
 
-        MHFittingStep() : /* m_model(0), m_target(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_transform(0) */ m_chain(0) { }
+
+        MHFittingStepper() :  m_model(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_closestPointEv(nullptr), m_chain(0) { }
 
         void init(ImagePointerType targetImage,
                   PreprocessedImagePointerType preprocessedTargetImage,
@@ -215,11 +218,10 @@ namespace itk {
                   statismo::VectorType coeffs)
         {
             m_model = model;
-//            m_target = target;
             m_sampler = sampler; // need to hold it here, as otherwise it crashes.
-//            m_transform = transform;
-//            m_coeffs = coeffs;
-//            m_configuration = configuration;
+            m_configuration = configuration;
+            m_closestPointEv = new itkMeshClosestPoint(targetImage) ;// TODO this is a memory leak - there must be a better way
+            m_preprocessedTargetImage = preprocessedTargetImage;
 
 
 
@@ -229,10 +231,20 @@ namespace itk {
 //            RigidTransformPointerType transform,
 //            statismo::VectorType coeffs
 
-            typedef typename statismo::mcmc<TPointSet,TImage>::template BasicSampling<TPointSet> BasicSampingType;
-            itkMeshClosestPoint* closestPointEv = new itkMeshClosestPoint(targetImage) ;// TODO this is a memory leak - there must be a better way
-            m_chain = BasicSampingType::buildChain(m_model->GetStatisticalModel()->GetRepresenter(), closestPointEv, configuration, preprocessedTargetImage, targetPoints, model->GetstatismoImplObj(), m_sampler, transform,coeffs);
+          m_chain = BasicSamplingType::buildInitialPoseChain(m_model->GetStatisticalModel()->GetRepresenter(), m_closestPointEv, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
+        
         }
+
+
+        void SetChainToInitialModelAndPose(const std::vector<PointType>& targetPoints, RigidTransformPointerType transform, statismo::VectorType coeffs)
+        {         
+          m_chain = BasicSamplingType::buildInitialModelChain(m_model->GetStatisticalModel()->GetRepresenter(), m_closestPointEv, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
+        }
+
+        void SetChainToLmAndHU(const std::vector<PointType>& targetPoints, RigidTransformPointerType transform, statismo::VectorType coeffs) {
+          m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_closestPointEv, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
+        }
+
 
 
 //        void SetSampler(SamplerPointerType sampler) {
@@ -285,12 +297,10 @@ namespace itk {
     private:
         ModelPointerType m_model;
         sampling::MarkovChain<statismo::MHFittingResult<RigidTransformPointerType> >* m_chain; // FIXME change type
- //       statismo::VectorType m_coeffs;
- //       RigidTransformPointerType m_transform;
-  //      ImagePointerType m_target;
+        PreprocessedImagePointerType m_preprocessedTargetImage;
         SamplerPointerType m_sampler;
-    //    ConfigurationType m_configuration;
-    //    std::vector<PointType> m_linePoints;
+        ConfigurationType m_configuration;
+        itkMeshClosestPoint* m_closestPointEv;
         typename ResultType::Pointer m_result;
     };
 
