@@ -6,6 +6,8 @@
 #include <itkStandardMeshRepresenter.h>
 #include "ASMFitting.h"
 #include <itkEuler3DTransform.h>
+#include <ITK-4.5/itkCenteredTransformInitializer.h>
+#include <ITK-4.5/itkCenteredVersorTransformInitializer.h>
 #include "itkASMNormalDirectionPointSampler.h"
 #include "itkASMNormalDirectionFeatureExtractor.h"
 #include "itkASMGaussianGradientImagePreprocessor.h"
@@ -16,6 +18,8 @@
 #include "itkMeshFileWriter.h"
 #include "itkTimeProbe.h"
 #include "itkMeshFileReader.h"
+#include "../cli/utils/statismo-fitting-utils.h"
+
 //#include "itkRigidTransformModelBuilder.h"
 
 
@@ -68,16 +72,6 @@ int main(int argc, char *argv[]) {
     statismo::ASMFittingConfiguration asmFitConfig(3,5,3);
     statismo::MHFittingConfiguration mhFitConfig(asmFitConfig);
 
-
-
-    // You should use here
-    // > representer->ComputeRigidTransformFromLandmarks
-    // if you have landmarks
-    // Currently I only want an identity transform
-    itk::VersorRigid3DTransform<float>::Pointer versorTransform = itk::VersorRigid3DTransform<float>::New();
-    RigidTransformType::Pointer currentTransform(versorTransform.GetPointer());
-    currentTransform->SetIdentity();
-
     // read and preprocess image
     ImageReaderType::Pointer reader = ImageReaderType::New();
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
@@ -87,6 +81,23 @@ int main(int argc, char *argv[]) {
 
     reader->Update();
     ImageType::Pointer image = reader->GetOutput();
+
+
+    // You should use here
+    // > representer->ComputeRigidTransformFromLandmarks
+    // if you have landmarks
+    // Currently I only want an identity transform
+    itk::VersorRigid3DTransform<float>::Pointer currentTransform = itk::VersorRigid3DTransform<float>::New();
+    //RigidTransformType::Pointer currentTransform(versorTransform.GetPointer());
+    currentTransform->SetIdentity();
+    itk::Point<float, 3> center;
+    for (unsigned d =0; d < 3; ++d) {
+        center[d] = image->GetOrigin()[d] + image->GetLargestPossibleRegion().GetSize()[d] * image->GetSpacing()[d];
+    }
+
+    currentTransform->SetCenter(center);
+
+
     statismo::ASMPreprocessedImage<MeshType> *pimage = aModel->GetstatismoImplObj()->GetImagePreprocessor()->Preprocess(image);
 
     // just for testing
@@ -103,13 +114,7 @@ int main(int argc, char *argv[]) {
 ////    for (unsigned i = 0; i < mesh->GetNumberOfPoints(); ++i) {
 //        if (i % 100 == 0) linePoints.push_back(mesh->GetPoint(i));
 //    }
-     PointType t1,t2;
-
-    t1[0] = -23.5f; t1[1]=62.4f; t1[2] = 409.0f;
-    t2[0] = -14.0f; t2[1] = 75.0f; t2[2] = 196.0f;
-    linePoints.push_back(t1);
-    linePoints.push_back(t2);
-
+    linePoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms.csv"));
 
 
     // very ITK unlike, we use a init method instead of setting all fields manually.
@@ -130,20 +135,20 @@ int main(int argc, char *argv[]) {
             std::cout << "invalid result, aborting " <<std::endl;
             exit(42);
         }
-        coeffs = fromVnlVector(result->GetCoefficients());
-        currentTransform = result->GetRigidTransformation();
-        std::cout << "coeffs (adj)" << toVnlVector(coeffs) << std::endl;
+//        coeffs = fromVnlVector(result->GetCoefficients());
+//        std::cout << "coeffs (adj)" << toVnlVector(coeffs) << std::endl;
 
-        if (currentTransform) {
-            std::cout << "Writing result of iteration " << i << std::endl;
-            itk::MeshFileWriter<MeshType>::Pointer writer = itk::MeshFileWriter<MeshType>::New();
-            std::stringstream filename;
-            filename << "/tmp/itkmesh-" << i << ".vtk";
-            writer->SetFileName(filename.str());
-            MeshType::Pointer ms = result->GetMesh();
-            writer->SetInput(ms);
-            writer->Update();
-        }
+        std::cout << "rigid params " << result->GetRigidTransformParameters() << std::endl;
+
+        std::cout << "Writing result of iteration " << i << std::endl;
+        itk::MeshFileWriter<MeshType>::Pointer writer = itk::MeshFileWriter<MeshType>::New();
+        std::stringstream filename;
+        filename << "/tmp/itkmesh-" << i << ".vtk";
+        writer->SetFileName(filename.str());
+        MeshType::Pointer ms = result->GetMesh();
+        writer->SetInput(ms);
+        writer->Update();
+
     }
     return 0;
 }

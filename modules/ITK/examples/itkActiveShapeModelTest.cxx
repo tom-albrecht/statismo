@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 //    target.push_back(tf);
 
     // Hack! There should be a better way to set the initial transform.
-    itk::VersorRigid3DTransform<float>::Pointer versorTransform = itk::VersorRigid3DTransform<float>::New();
+    itk::Euler3DTransform<float>::Pointer versorTransform = itk::Euler3DTransform<float>::New();
     RigidTransformType::Pointer currentTransform(versorTransform.GetPointer());
     currentTransform->SetIdentity();
 
