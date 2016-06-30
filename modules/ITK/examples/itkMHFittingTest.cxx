@@ -102,11 +102,7 @@ int main(int argc, char *argv[]) {
 
     // just for testing
     itk::ReducedVarianceModelBuilder<MeshType>::Pointer redModelBuilder = itk::ReducedVarianceModelBuilder<MeshType>::New();
-
-    StatisticalModelType::Pointer reducedMOdel = redModelBuilder->BuildNewModelWithLeadingComponents(aModel->GetStatisticalModel(), 20);
-    aModel->SetStatisticalModel(reducedMOdel);
-    statismo::VectorType coeffs = statismo::VectorType::Zero(aModel->GetStatisticalModel()->GetNumberOfPrincipalComponents());
-
+    
 
     std::vector<PointType> linePoints;
     linePoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms-line.csv"));
@@ -137,6 +133,7 @@ int main(int argc, char *argv[]) {
 
 
 
+    statismo::VectorType coeffs = statismo::VectorType::Zero(aModel->GetStatisticalModel()->GetNumberOfPrincipalComponents());
 
     // very ITK unlike, we use a init method instead of setting all fields manually.
     // This avoids 99% of all core dumps :-)
@@ -146,9 +143,11 @@ int main(int argc, char *argv[]) {
     std::cout << "Initialization done." << std::endl;
 
 
-    for (int i =1; i <= 1500; ++i) {
+    for (int i =1; i <= 5000; ++i) {
 
         std::cout << "iteration: " << i << std::endl;
+
+
 
         fittingStep->NextSample();
         FittingResultType::Pointer result = fittingStep->GetOutput();
@@ -156,6 +155,14 @@ int main(int argc, char *argv[]) {
             std::cout << "invalid result, aborting " <<std::endl;
             exit(42);
         }
+
+
+        if (i == 1000) {
+            currentTransform->SetParameters(result->GetRigidTransformParameters());
+            fittingStep->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(result->GetCoefficients()));
+        }
+
+
 //        coeffs = fromVnlVector(result->GetCoefficients());
 //        std::cout << "coeffs (adj)" << toVnlVector(coeffs) << std::endl;
 

@@ -145,7 +145,6 @@ namespace itk {
             return output;
 
         }
-
         virtual PointType getPointWithId(RepresenterType::MeshPointerType mesh, unsigned id) const {
             return mesh->GetPoint(id);
         }
@@ -181,7 +180,8 @@ namespace itk {
 
         typedef typename ActiveShapeModel<TPointSet, TImage>::Pointer ModelType;
         typedef typename ActiveShapeModel<TPointSet, TImage>::Pointer ModelPointerType;
-        typedef typename ActiveShapeModel<TPointSet, TImage>::ImplType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
+
+        typedef itk::VersorRigid3DTransform<float> RigidTransformType;
 
         itkNewMacro(Self);
         itkTypeMacro(Self, Object);
@@ -219,8 +219,12 @@ namespace itk {
 //        }
 
 
-        statismo::VectorType GetRigidTransformParameters() {
-            return m_samplingParameters.GetRigidTransformParameters();
+         RigidTransformType::ParametersType GetRigidTransformParameters() {
+             statismo::VectorType rigidParameters =  m_samplingParameters.GetRigidTransformParameters();
+            RigidTransformType::ParametersType p(rigidParameters.size());
+            p.SetData(rigidParameters.data());
+
+            return p;
         }
 
 
@@ -261,7 +265,7 @@ namespace itk {
 
         typedef typename ActiveShapeModel<TPointSet, TImage>::Pointer ModelPointerType;
         typedef typename ActiveShapeModel<TPointSet, TImage>::ImplType::RepresenterType::PointType PointType;
-        typedef typename ActiveShapeModel<TPointSet, TImage>::ImplType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
+        itk::Rigid3DTransform<float>::Pointer RigidTransformPointerType;
         typedef typename TPointSet::Pointer PointSetPointerType;
         typedef itk::Image<float, 3> ImageType;
         typedef typename itk::Image<float, 3>::Pointer ImagePointerType;
@@ -307,13 +311,10 @@ namespace itk {
         }
 
 
-        void SetChainToInitialModelAndPose(const std::vector<PointType>& targetPoints, RigidTransformPointerType transform, statismo::VectorType coeffs)
-        {         
-          m_chain = BasicSamplingType::buildInitialModelChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
-        }
 
-        void SetChainToLmAndHU(const std::vector<PointType>& targetPoints, RigidTransformPointerType transform, statismo::VectorType coeffs) {
-          m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
+        void SetChainToLmAndHU(const CorrespondencePoints correspondencePoints, const std::vector<PointType>& targetPoints, itk::Rigid3DTransform<float>* transform, statismo::VectorType coeffs) {
+            statismo::MHFittingParameters initialParameters(coeffs, fromVnlVector(transform->GetParameters()));
+          m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, correspondencePoints, targetPoints, m_model->GetstatismoImplObj(), initialParameters);
         }
 
 
