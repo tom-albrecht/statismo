@@ -129,6 +129,7 @@ namespace statismo {
         virtual VectorType normalAtPoint(MeshType mesh, PointType pt) const = 0;
         virtual short huAtPoint(MeshType mesh, long ptId) const = 0;
         virtual MeshType transformMesh(const MHFittingParameters& fittingParameters) const = 0;
+        virtual PointType getPointWithId(MeshType mesh, unsigned id) const = 0;
     };
 
 
@@ -136,6 +137,7 @@ namespace statismo {
   template< class TPointSet, class TImage>
   class mcmc {
 
+  public:
 
       typedef ActiveShapeModel<TPointSet, TImage> ActiveShapeModelType;
       typedef ASMPointSampler<TPointSet, TImage> PointSamplerType;
@@ -148,7 +150,7 @@ namespace statismo {
       typedef ASMPreprocessedImage<TPointSet> PreprocessedImageType;
       typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
       typedef  ASMFittingStep<TPointSet, TImage> ASMFittingStepType;
-
+      typedef std::vector<std::pair<unsigned, PointType> > CorrespondencePoints;
 
       // Proposals
       /*============================================================================*/
@@ -274,7 +276,7 @@ namespace statismo {
       public:
           InLungOrBoneEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, ActiveShapeModelType* asmodel) :
                   m_asmodel(asmodel),
-                  m_closestPoint(closestPoint)
+                  m_meshOperations(closestPoint)
 
           {}
 
@@ -290,7 +292,7 @@ namespace statismo {
 
               //std::cout << currentSample.GetRigidTransform()->GetParameters() << std::endl;
 
-              typename RepresenterType::DatasetPointerType sample = m_closestPoint->TransformMesh(m_asmodel->GetStatisticalModel(), currentSample);
+              typename RepresenterType::DatasetPointerType sample = m_meshOperations->TransformMesh(m_asmodel->GetStatisticalModel(), currentSample);
               typename RepresenterType::DomainType::DomainPointsListType  points = m_asmodel->GetRepresenter()->GetDomain().GetDomainPoints();
               bool isInsideBone = false;
               double increase = -std::numeric_limits<double>::max() / points.size();
@@ -301,7 +303,7 @@ namespace statismo {
                   //double d = m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
 
 
-                  if (m_closestPoint->huAtPoint(sample, i) > 1150 || m_closestPoint->huAtPoint(sample, i) < 400 )   {
+                  if (m_meshOperations->huAtPoint(sample, i) > 1150 || m_meshOperations->huAtPoint(sample, i) < 400 )   {
 //                      isInsideBone = true;
 //                      break;
 
@@ -327,7 +329,7 @@ namespace statismo {
           const vector< PointType > m_targetPoints;
           const ActiveShapeModelType* m_asmodel;
           PositionEvaluator* m_eval;
-          const ClosestPointType* m_closestPoint;
+          const ClosestPointType* m_meshOperations;
 
       };
 
@@ -372,8 +374,9 @@ namespace statismo {
           typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
 
         public:
-          PointEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
-            m_targetPoints(targetPoints),
+          PointEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const CorrespondencePoints& correspondencePoints,  const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
+            m_correspondencePoints(correspondencePoints),
+                  m_targetPoints(targetPoints),
             m_asmodel(asmodel),
             m_eval(evaluator),
             m_closestPoint(closestPoint)
@@ -396,10 +399,19 @@ namespace statismo {
 
                 distance += d;
             }
+
+              for( unsigned i = 0; i < m_correspondencePoints.size(); ++i)  {
+
+                  PointType pointOnSample = m_closestPoint->getPointWithId(sample, m_correspondencePoints[i].first);
+                  double d = m_eval->evalSample(pointOnSample - m_correspondencePoints[i].second);
+                  distance += d;
+              }
+
             return distance;
 
           }
         private:
+          CorrespondencePoints m_correspondencePoints;
           const vector< PointType > m_targetPoints;
           const ActiveShapeModelType* m_asmodel;
           PositionEvaluator* m_eval;
@@ -543,6 +555,10 @@ namespace statismo {
       template <class T>
       class BasicSampling {
         public:
+
+
+
+
           static MarkovChain<MHFittingParameters >* buildChain(
                   const Representer<T>* representer,
                   const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
@@ -686,6 +702,7 @@ namespace statismo {
           static MarkovChain<MHFittingParameters >* buildInitialPoseChain(
             const Representer<T>* representer,
             const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
+            CorrespondencePoints correspondencePoints,
             vector<PointType> targetPoints,
             ActiveShapeModelType* asmodel,
             MHFittingParameters& initialParameters) {
@@ -694,9 +711,9 @@ namespace statismo {
             RandomGenerator* rGen = new RandomGenerator(42);
 
 
-            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0, 1, rGen);
-            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0, 0.3, rGen);
-            GaussianModelUpdate* poseProposalFinest = new GaussianModelUpdate(0, 0.1, rGen);
+            GaussianModelUpdate* poseProposalRough = new GaussianModelUpdate(0.1, 1, rGen);
+            GaussianModelUpdate* poseProposalFine = new GaussianModelUpdate(0.05, 0.3, rGen);
+            GaussianModelUpdate* poseProposalFinest = new GaussianModelUpdate(0.01, 0.1, rGen);
 
 
             vector< typename RandomProposal< MHFittingParameters >::GeneratorPair> gaussMixtureProposalVector(3);
@@ -707,10 +724,18 @@ namespace statismo {
             RandomProposal<MHFittingParameters >* gaussMixtureProposal = new RandomProposal<MHFittingParameters >(gaussMixtureProposalVector, rGen);
 
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.4);
-            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, targetPoints, asmodel, diffEval);
-            
+            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, correspondencePoints, targetPoints, asmodel, diffEval);
+
+              ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
+
             QuietLogger <MHFittingParameters>* ql = new QuietLogger<MHFittingParameters>();
-            MarkovChain<MHFittingParameters >* lmChain = new MetropolisHastings<MHFittingParameters >(gaussMixtureProposal, pointEval, ql, initialParameters, rGen);
+
+
+            std::vector<DistributionEvaluator<MHFittingParameters >*> evaluatorList;
+             evaluatorList.push_back(pointEval);
+              evaluatorList.push_back(modelPriorEvaluator);
+
+            MarkovChain<MHFittingParameters >* lmChain = new MetropolisHastings<MHFittingParameters >(gaussMixtureProposal, new ProductEvaluator<MHFittingParameters>(evaluatorList), ql, initialParameters, rGen);
 
             return lmChain;
           }
@@ -727,9 +752,9 @@ namespace statismo {
             RandomGenerator* rGen = new RandomGenerator(42);
 
 
-            GaussianModelUpdate* poseAndShapeProposalRough = new GaussianModelUpdate(1, 1, rGen);
-            GaussianModelUpdate* poseAndShapeProposalFine = new GaussianModelUpdate(0.3, 0.3, rGen);
-            GaussianModelUpdate* poseAndShapeProposalFinest = new GaussianModelUpdate(0.1, 0.1, rGen);
+            GaussianModelUpdate* poseAndShapeProposalRough = new GaussianModelUpdate(1, 10, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFine = new GaussianModelUpdate(0.3, 3, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFinest = new GaussianModelUpdate(0.1, 1, rGen);
 
 
             vector< typename RandomProposal< MHFittingParameters >::GeneratorPair> gaussMixtureProposalVector(3);

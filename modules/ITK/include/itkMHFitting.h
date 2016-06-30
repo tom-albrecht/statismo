@@ -146,6 +146,9 @@ namespace itk {
 
         }
 
+        virtual PointType getPointWithId(RepresenterType::MeshPointerType mesh, unsigned id) const {
+            return mesh->GetPoint(id);
+        }
 
 
             private:
@@ -269,10 +272,13 @@ namespace itk {
         typedef typename statismo::mcmc<TPointSet, TImage>::template BasicSampling<TPointSet> BasicSamplingType;
         typedef MHFittingResult<TPointSet, TImage> ResultType;
 
-        MHFittingStepper() :  m_model(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_closestPointEv(0), m_chain(0) { }
+       typedef typename statismo::mcmc<TPointSet, TImage>::CorrespondencePoints CorrespondencePoints;
+
+        MHFittingStepper() :  m_model(0), m_configuration(statismo::ASMFittingConfiguration(0,0,0)), m_meshOperations(0), m_chain(0) { }
 
         void init(ImagePointerType targetImage,
                   PreprocessedImagePointerType preprocessedTargetImage,
+                  const CorrespondencePoints correspondencePoints,
                   const std::vector<PointType>& targetPoints,
                   ModelPointerType model,
                   SamplerPointerType sampler,
@@ -283,7 +289,7 @@ namespace itk {
             m_model = model;
             m_sampler = sampler; // need to hold it here, as otherwise it crashes.
             m_configuration = configuration;
-            m_closestPointEv = new itkMeshOperations(model->GetStatisticalModel()->GetstatismoImplObj(), targetImage, transform->GetCenter()) ;// TODO this is a memory leak - there must be a better way
+            m_meshOperations = new itkMeshOperations(model->GetStatisticalModel()->GetstatismoImplObj(), targetImage, transform->GetCenter()) ;// TODO this is a memory leak - there must be a better way
             m_preprocessedTargetImage = preprocessedTargetImage;
 
 
@@ -296,18 +302,18 @@ namespace itk {
 
             statismo::MHFittingParameters initialParameters(coeffs, fromVnlVector(transform->GetParameters()));
 
-          m_chain = BasicSamplingType::buildInitialPoseChain(m_model->GetStatisticalModel()->GetRepresenter(), m_closestPointEv, targetPoints, m_model->GetstatismoImplObj(), initialParameters);
+          m_chain = BasicSamplingType::buildInitialPoseChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, correspondencePoints, targetPoints, m_model->GetstatismoImplObj(), initialParameters);
         
         }
 
 
         void SetChainToInitialModelAndPose(const std::vector<PointType>& targetPoints, RigidTransformPointerType transform, statismo::VectorType coeffs)
         {         
-          m_chain = BasicSamplingType::buildInitialModelChain(m_model->GetStatisticalModel()->GetRepresenter(), m_closestPointEv, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
+          m_chain = BasicSamplingType::buildInitialModelChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
         }
 
         void SetChainToLmAndHU(const std::vector<PointType>& targetPoints, RigidTransformPointerType transform, statismo::VectorType coeffs) {
-          m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_closestPointEv, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
+          m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, targetPoints, m_model->GetstatismoImplObj(), transform, coeffs);
         }
 
 
@@ -350,7 +356,7 @@ namespace itk {
 
             statismo::MHFittingParameters result = impl->Perform();
             m_result = ResultType::New();
-            m_result->SetInternalData(m_closestPointEv, result, m_model);
+            m_result->SetInternalData(m_meshOperations, result, m_model);
 
             delete impl;
         }
@@ -372,7 +378,7 @@ namespace itk {
         PreprocessedImagePointerType m_preprocessedTargetImage;
         SamplerPointerType m_sampler;
         ConfigurationType m_configuration;
-        itkMeshOperations* m_closestPointEv;
+        itkMeshOperations* m_meshOperations;
         typename ResultType::Pointer m_result;
     };
 

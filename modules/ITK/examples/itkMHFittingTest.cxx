@@ -19,7 +19,7 @@
 #include "itkTimeProbe.h"
 #include "itkMeshFileReader.h"
 #include "../cli/utils/statismo-fitting-utils.h"
-
+#include "itkReducedVarianceModelBuilder.h"
 //#include "itkRigidTransformModelBuilder.h"
 
 
@@ -101,31 +101,52 @@ int main(int argc, char *argv[]) {
     statismo::ASMPreprocessedImage<MeshType> *pimage = aModel->GetstatismoImplObj()->GetImagePreprocessor()->Preprocess(image);
 
     // just for testing
-    aModel->SetStatisticalModel(aModel->GetStatisticalModel());
+    itk::ReducedVarianceModelBuilder<MeshType>::Pointer redModelBuilder = itk::ReducedVarianceModelBuilder<MeshType>::New();
+
+    StatisticalModelType::Pointer reducedMOdel = redModelBuilder->BuildNewModelWithLeadingComponents(aModel->GetStatisticalModel(), 20);
+    aModel->SetStatisticalModel(reducedMOdel);
     statismo::VectorType coeffs = statismo::VectorType::Zero(aModel->GetStatisticalModel()->GetNumberOfPrincipalComponents());
 
 
-    // a vector with all the point constraints that should be used within the fitting
-//    itk::MeshFileReader<MeshType>::Pointer meshReader = itk::MeshFileReader<MeshType>::New();
-//    meshReader->SetFileName("/tmp/vsd-0.vtk");
-//    meshReader->Update();
-//    MeshType::Pointer mesh = meshReader->GetOutput();
     std::vector<PointType> linePoints;
-////    for (unsigned i = 0; i < mesh->GetNumberOfPoints(); ++i) {
-//        if (i % 100 == 0) linePoints.push_back(mesh->GetPoint(i));
-//    }
-    linePoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms.csv"));
+    linePoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms-line.csv"));
+
+    // Get poitn ids of reference and target points
+    std::vector<PointType> refPoints;
+    refPoints = readLandmarksFile<MeshType>(std::string("/tmp/fancylms.csv"));
+
+    std::vector<PointType> targetPoints;
+    targetPoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms.csv"));
+
+
+    typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
+    PointsLocatorType::Pointer ptLocator = PointsLocatorType::New();
+    ptLocator->SetPoints(aModel->GetStatisticalModel()->GetRepresenter()->GetReference()->GetPoints());
+    ptLocator->Initialize();
+
+    if (refPoints.size() != targetPoints.size()) {
+        std::cout << "need the same number of reference and target points" << std::endl;
+        exit(-1);
+    }
+
+    FittingStepType::CorrespondencePoints correspondingPoints;
+    for (unsigned i = 0; i < refPoints.size(); ++i) {
+        long ptId = ptLocator->FindClosestPoint(refPoints[i]);
+        correspondingPoints.push_back(std::make_pair(ptId, targetPoints[i]));
+    }
+
+
 
 
     // very ITK unlike, we use a init method instead of setting all fields manually.
     // This avoids 99% of all core dumps :-)
     FittingStepType::Pointer fittingStep = FittingStepType::New();
-    fittingStep->init(image, pimage, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, coeffs);
+    fittingStep->init(image, pimage, correspondingPoints, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, coeffs);
 
     std::cout << "Initialization done." << std::endl;
 
 
-    for (int i =1; i <= 1000; ++i) {
+    for (int i =1; i <= 1500; ++i) {
 
         std::cout << "iteration: " << i << std::endl;
 
@@ -150,6 +171,10 @@ int main(int argc, char *argv[]) {
         writer->Update();
 
     }
+
+
+
+
     return 0;
 }
 
