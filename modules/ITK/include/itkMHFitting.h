@@ -178,9 +178,6 @@ namespace itk {
         typedef SmartPointer <Self> Pointer;
         typedef SmartPointer<const Self> ConstPointer;
 
-        typedef typename ActiveShapeModel<TPointSet, TImage>::Pointer ModelType;
-        typedef typename ActiveShapeModel<TPointSet, TImage>::Pointer ModelPointerType;
-
         typedef itk::VersorRigid3DTransform<float> RigidTransformType;
 
         itkNewMacro(Self);
@@ -192,8 +189,7 @@ namespace itk {
         MHFittingResult() : m_meshOperations(0) {}
 
 
-        void SetInternalData(const itkMeshOperations* meshOperations, ImplType statismoResult, ModelPointerType model) {
-            m_model = model;
+        void SetInternalData(const itkMeshOperations* meshOperations, ImplType statismoResult) {
             m_samplingParameters = statismoResult;
             m_meshOperations = meshOperations;
         }
@@ -239,7 +235,6 @@ namespace itk {
 
     private:
         ImplType m_samplingParameters;
-        ModelPointerType m_model;
         const itkMeshOperations* m_meshOperations;
 
         VectorType toVnlVector(const statismo::VectorType& v) {
@@ -307,10 +302,18 @@ namespace itk {
             statismo::MHFittingParameters initialParameters(coeffs, fromVnlVector(transform->GetParameters()));
 
           m_chain = BasicSamplingType::buildInitialPoseChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, correspondencePoints, targetPoints, m_model->GetstatismoImplObj(), initialParameters);
-        
+            std::cout << "uncertainty " << std::endl;
         }
 
+        std::map<unsigned, statismo::MultiVariateNormalDistribution> computePointUncertainty(const CorrespondencePoints correspondencePoints,
+                                     const std::vector<PointType> &targetPoints) {
+            statismo::MHFittingParameters lastParameters;
+            m_chain->current(lastParameters);
+            return BasicSamplingType::estimatePointUncertaintyForInitialPoseChain(
+                    m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, correspondencePoints,
+                    targetPoints, m_model->GetstatismoImplObj(), lastParameters);
 
+        }
 
         void SetChainToLmAndHU(const CorrespondencePoints correspondencePoints, const std::vector<PointType>& targetPoints, itk::Rigid3DTransform<float>* transform, statismo::VectorType coeffs) {
             statismo::MHFittingParameters initialParameters(coeffs, fromVnlVector(transform->GetParameters()));
@@ -357,7 +360,7 @@ namespace itk {
 
             statismo::MHFittingParameters result = impl->Perform();
             m_result = ResultType::New();
-            m_result->SetInternalData(m_meshOperations, result, m_model);
+            m_result->SetInternalData(m_meshOperations, result);
 
             delete impl;
         }

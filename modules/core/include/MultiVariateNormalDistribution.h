@@ -46,13 +46,15 @@ namespace statismo {
     class MultiVariateNormalDistribution {
 
     private:
-        VectorType mean;
-        MatrixType covariance;
         MatrixType covInv;
 
     public:
 
-        MultiVariateNormalDistribution(VectorType mean, MatrixType covariance): mean(mean), covariance(covariance) {
+        VectorType mean;
+        MatrixType covariance;
+
+
+        MultiVariateNormalDistribution(VectorType _mean, MatrixType _covariance): mean(_mean), covariance(_covariance) {
             if (!Utils::PseudoInverse(covariance, covInv)) {
                 //FIXME: throw some exception
             }

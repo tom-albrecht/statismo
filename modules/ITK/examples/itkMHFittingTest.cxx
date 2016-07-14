@@ -2,12 +2,13 @@
 #include <itkMesh.h>
 #include <itkImage.h>
 #include <itkImageFileReader.h>
-
+#include "itkStatismoIO.h"
 #include <itkStandardMeshRepresenter.h>
 #include "ASMFitting.h"
 #include <itkEuler3DTransform.h>
 #include <ITK-4.5/itkCenteredTransformInitializer.h>
 #include <ITK-4.5/itkCenteredVersorTransformInitializer.h>
+#include <itkPosteriorModelBuilder.h>
 #include "itkASMNormalDirectionPointSampler.h"
 #include "itkASMNormalDirectionFeatureExtractor.h"
 #include "itkASMGaussianGradientImagePreprocessor.h"
@@ -21,6 +22,7 @@
 #include "../cli/utils/statismo-fitting-utils.h"
 #include "itkReducedVarianceModelBuilder.h"
 //#include "itkRigidTransformModelBuilder.h"
+#include "itkPosteriorModelBuilder.h"
 
 
 typedef itk::Mesh<float, 3> MeshType;
@@ -36,6 +38,7 @@ typedef itk::Euler3DTransform< float > TransformType;
 
 typedef itk::MHFittingStepper<MeshType, ImageType> FittingStepType;
 typedef itk::MHFittingResult<MeshType, ImageType> FittingResultType;
+typedef itk::PosteriorModelBuilder<MeshType> PosteriorModelBuilderType;
 
 
 // FIXME: these conversions have to go.
@@ -143,28 +146,15 @@ int main(int argc, char *argv[]) {
     std::cout << "Initialization done." << std::endl;
 
 
-    for (int i =1; i <= 5000; ++i) {
+
+    for (int i =1; i <= 1000; ++i) {
 
         std::cout << "iteration: " << i << std::endl;
-
-
+        FittingResultType::Pointer result;
 
         fittingStep->NextSample();
-        FittingResultType::Pointer result = fittingStep->GetOutput();
-        if (!result->IsValid()) {
-            std::cout << "invalid result, aborting " <<std::endl;
-            exit(42);
-        }
-
-
-        if (i == 1000) {
-            currentTransform->SetParameters(result->GetRigidTransformParameters());
-            fittingStep->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(result->GetCoefficients()));
-        }
-
-
-//        coeffs = fromVnlVector(result->GetCoefficients());
-//        std::cout << "coeffs (adj)" << toVnlVector(coeffs) << std::endl;
+        result = fittingStep->GetOutput();
+        currentTransform->SetParameters(result->GetRigidTransformParameters());
 
         std::cout << "rigid params " << result->GetRigidTransformParameters() << std::endl;
 
@@ -177,7 +167,65 @@ int main(int argc, char *argv[]) {
         writer->SetInput(ms);
         writer->Update();
 
+
     }
+
+
+    // compute the uncertainty and set the model accordingly
+    PosteriorModelBuilderType::Pointer posteriorModelBuilder = PosteriorModelBuilderType::New();
+    PosteriorModelBuilderType::PointValueWithCovarianceListType constraints;
+
+    typedef std::map<unsigned, statismo::MultiVariateNormalDistribution> UncertaintyMap;
+    UncertaintyMap uncertaintyMap = fittingStep->computePointUncertainty(correspondingPoints, targetPoints);
+
+    MeshType::Pointer ref = aModel->GetStatisticalModel()->GetRepresenter()->GetReference();
+    //for (UncertaintyMap::const_iterator it = uncertaintyMap.begin(); it != uncertaintyMap.end(); ++it) {
+    for (unsigned i = 0; i < correspondingPoints.size(); ++i) {
+        unsigned id = correspondingPoints[i].first;
+        PointType targetPoint = correspondingPoints[i].second;
+
+        PointType refPt = ref->GetPoint(id);
+        statismo::MatrixType uncertainty = uncertaintyMap.find(id)->second.covariance;
+
+        StatisticalModelType::PointValuePairType pointValue(refPt ,targetPoint);
+        StatisticalModelType::PointValueWithCovariancePairType  pointValueCov(pointValue, uncertainty);
+        constraints.push_back(pointValueCov);
+    }
+
+
+    StatisticalModelType::Pointer posteriorModel = posteriorModelBuilder->BuildNewModelFromModel(aModel->GetStatisticalModel(), constraints, false);
+
+    itk::StatismoIO<MeshType>::SaveStatisticalModel(posteriorModel, "/tmp/posterior.h5");
+
+    aModel->SetStatisticalModel(posteriorModel);
+
+
+    FittingStepType::Pointer fittingStep2 = FittingStepType::New();
+    fittingStep2->init(image, pimage, correspondingPoints, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, coeffs);
+    fittingStep2->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(fittingStep->GetOutput()->GetCoefficients()));
+
+    for (int i =1; i <= 1000; ++i) {
+
+        std::cout << "iteration: " << i << std::endl;
+        FittingResultType::Pointer result;
+
+        fittingStep2->NextSample();
+        result = fittingStep2->GetOutput();
+        currentTransform->SetParameters(result->GetRigidTransformParameters());
+
+        itk::MeshFileWriter<MeshType>::Pointer writer = itk::MeshFileWriter<MeshType>::New();
+        std::stringstream filename;
+        filename << "/tmp/itk2mesh-" << i << ".vtk";
+        writer->SetFileName(filename.str());
+        MeshType::Pointer ms = result->GetMesh();
+        writer->SetInput(ms);
+        writer->Update();
+
+
+    }
+
+
+
 
 
 

@@ -42,6 +42,7 @@
 #include "ActiveShapeModel.h"
 #include "ASMFitting.h"
 #include "ASMPointSampler.h"
+#include "MultiVariateNormalDistribution.h"
 #include <boost/thread.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread/future.hpp>
@@ -151,6 +152,106 @@ namespace statismo {
       typedef typename ActiveShapeModelType::RepresenterType::RigidTransformPointerType RigidTransformPointerType;
       typedef  ASMFittingStep<TPointSet, TImage> ASMFittingStepType;
       typedef std::vector<std::pair<unsigned, PointType> > CorrespondencePoints;
+
+
+
+      template <class T>
+      class UncertaintyLogger : public ChainLogger<MHFittingParameters> {
+          typedef typename Representer<T>::PointType PointType;
+          typedef unsigned int PointId;
+
+      public:
+          typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> MeshOperationsType;
+          UncertaintyLogger(const Representer<T>* representer, const MeshOperationsType* meshOps, const CorrespondencePoints& correspondencePoints,  const vector< PointType >& targetPoints)
+
+                  : m_representer(representer),
+                    m_meshOps(meshOps),
+                    m_correspondencePoints(correspondencePoints),
+                    m_targetPoints(targetPoints)
+          {
+              // fill the map with an empty vector of points
+              for( unsigned i = 0; i < m_correspondencePoints.size(); ++i)  {
+                  unsigned id = m_correspondencePoints[i].first;
+                  m_uncertaintyPerCorrespondingPoint.insert(std::make_pair(id, std::vector<PointType>()));
+              }
+
+          }
+          ~UncertaintyLogger() {
+              std::cout << "destructor of uncertainty logger" << std::endl;
+
+          }
+
+
+          virtual void notifyAccept(
+                  const MHFittingParameters& parameters,
+                  const double& dProbValue,
+                  ProposalGeneratorInterface<MHFittingParameters>* proposal,
+                  DistributionEvaluatorInterface<MHFittingParameters>* evaluator
+          ) {
+
+              typename Representer<T>::DatasetPointerType sample = m_meshOps->transformMesh(parameters);
+              for( unsigned i = 0; i < m_correspondencePoints.size(); ++i)  {
+                  unsigned id = m_correspondencePoints[i].first;
+                  PointType pointOnSample = m_meshOps->getPointWithId(sample, id);
+                  m_uncertaintyPerCorrespondingPoint[id].push_back(pointOnSample);
+
+              }
+
+          }
+
+          /** \brief Function gets called whenever an algorithm rejects a proposal */
+          virtual void notifyReject(
+                  const MHFittingParameters& sample,
+                  const double& dProbValue,
+                  ProposalGeneratorInterface<MHFittingParameters>* proposal,
+                  DistributionEvaluatorInterface<MHFittingParameters>* evaluator
+          ) {}
+
+          /** \brief Function gets called whenever an algorithm is reset to a new state */
+          virtual void notifyReset (
+                  const MHFittingParameters& state,
+                  const double& dProbValue,
+                  ProposalGeneratorInterface<MHFittingParameters>* proposal,
+                  DistributionEvaluatorInterface<MHFittingParameters>* evaluator
+          ) {}
+
+
+          MultiVariateNormalDistribution uncertaintyForCorrespondencePoint(unsigned id) {
+
+
+              VectorType mean = VectorType::Zero(3);
+              MatrixType cov = MatrixType::Zero(3, 3);
+
+
+              const std::vector<PointType>& v = m_uncertaintyPerCorrespondingPoint[id];
+
+
+              for (typename std::vector<PointType>::const_iterator it = v.begin(); it != v.end(); ++it) {
+                  VectorType ptAsVec =  m_representer->PointToVector(*it);
+                  mean += ptAsVec;
+              }
+              mean /= v.size();
+
+
+              for (typename std::vector<PointType>::const_iterator it = v.begin(); it != v.end(); ++it) {
+                  VectorType ptAsVec =  m_representer->PointToVector(*it);
+                  cov += (ptAsVec - mean) * (ptAsVec -mean).transpose();
+              }
+              cov /= (v.size() - 1 );
+
+              MultiVariateNormalDistribution mvn(mean, cov);
+              return mvn;
+
+          }
+
+      private:
+          const Representer<T>* m_representer;
+          const MeshOperationsType* m_meshOps;
+          std::vector<PointType> m_targetPoints;
+          CorrespondencePoints m_correspondencePoints;
+          std::map<PointId, std::vector<PointType> > m_uncertaintyPerCorrespondingPoint;
+      };
+
 
       // Proposals
       /*============================================================================*/
@@ -589,7 +690,7 @@ namespace statismo {
 
             RandomProposal<MHFittingParameters >* gaussMixtureProposal = new RandomProposal<MHFittingParameters >(gaussMixtureProposalVector, rGen);
 
-            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.4);
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, meshOperations, correspondencePoints, targetPoints, asmodel, diffEval);
             ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
 
@@ -615,15 +716,45 @@ namespace statismo {
             return lmAndHuChain;
           }
 
+
+
+
+          // estimate the uncertainty at the given correspondence Points, by sampling from the initialPoseChain.
+          static std::map<unsigned, MultiVariateNormalDistribution> estimatePointUncertaintyForInitialPoseChain(const Representer <T> *representer,
+                                                                  const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> *meshOperations,
+                                                                  CorrespondencePoints correspondencePoints,
+                                                                  vector<PointType> targetPoints,
+                                                                  ActiveShapeModelType *asmodel,
+                                                                  MHFittingParameters &initialParameters)
+          {
+              UncertaintyLogger<T>* ul = new UncertaintyLogger<T>(representer, meshOperations, correspondencePoints, targetPoints);
+              MarkovChain<MHFittingParameters>* chain = buildInitialPoseChain(representer, meshOperations, correspondencePoints, targetPoints, asmodel, initialParameters, ul);
+
+              MHFittingParameters params;//(m_sourceTransform,m_sourceCoefficients);
+              for (unsigned i = 0; i < 1000; ++i) {
+                  chain->next(params);
+              }
+
+              std::map<unsigned, MultiVariateNormalDistribution> uncertaintyMap;
+
+              for (unsigned i = 0 ; i < correspondencePoints.size(); ++i) {
+                  unsigned id = correspondencePoints[i].first;
+
+                  uncertaintyMap.insert(std::make_pair(id, ul->uncertaintyForCorrespondencePoint(id)));
+              }
+              return uncertaintyMap;
+
+          }
+
           static MarkovChain<MHFittingParameters >* buildInitialPoseChain(
             const Representer<T>* representer,
             const MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType>* closestPoint,
             CorrespondencePoints correspondencePoints,
             vector<PointType> targetPoints,
             ActiveShapeModelType* asmodel,
-            MHFittingParameters& initialParameters) {
-
-              unsigned numPCAComponents = 10;
+            MHFittingParameters& initialParameters,
+            ChainLogger<MHFittingParameters>* logger = new QuietLogger<MHFittingParameters>()) {
+              unsigned numPCAComponents = 100;
 
             // basics
             RandomGenerator* rGen = new RandomGenerator(42);
@@ -641,19 +772,19 @@ namespace statismo {
 
             RandomProposal<MHFittingParameters >* gaussMixtureProposal = new RandomProposal<MHFittingParameters >(gaussMixtureProposalVector, rGen);
 
-            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 0.4);
+            Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
             PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, correspondencePoints, targetPoints, asmodel, diffEval);
 
               ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
 
-            QuietLogger <MHFittingParameters>* ql = new QuietLogger<MHFittingParameters>();
+
 
 
             std::vector<DistributionEvaluator<MHFittingParameters >*> evaluatorList;
              evaluatorList.push_back(pointEval);
              evaluatorList.push_back(modelPriorEvaluator);
 
-            MarkovChain<MHFittingParameters >* lmChain = new MetropolisHastings<MHFittingParameters >(gaussMixtureProposal, new ProductEvaluator<MHFittingParameters>(evaluatorList), ql, initialParameters, rGen);
+            MarkovChain<MHFittingParameters >* lmChain = new MetropolisHastings<MHFittingParameters >(gaussMixtureProposal, new ProductEvaluator<MHFittingParameters>(evaluatorList), logger, initialParameters, rGen);
 
             return lmChain;
           }
