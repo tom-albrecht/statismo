@@ -182,7 +182,11 @@ int main(int argc, char *argv[]) {
     //for (UncertaintyMap::const_iterator it = uncertaintyMap.begin(); it != uncertaintyMap.end(); ++it) {
     for (unsigned i = 0; i < correspondingPoints.size(); ++i) {
         unsigned id = correspondingPoints[i].first;
-        PointType targetPoint = correspondingPoints[i].second;
+        //PointType targetPoint = correspondingPoints[i].second;
+        PointType targetPoint;
+        targetPoint.SetElement(0, uncertaintyMap.find(id)->second.mean[0]);
+        targetPoint.SetElement(1, uncertaintyMap.find(id)->second.mean[1]);
+        targetPoint.SetElement(2, uncertaintyMap.find(id)->second.mean[2]);
 
         PointType refPt = ref->GetPoint(id);
         statismo::MatrixType uncertainty = uncertaintyMap.find(id)->second.covariance;

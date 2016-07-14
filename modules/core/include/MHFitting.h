@@ -131,6 +131,7 @@ namespace statismo {
         virtual short huAtPoint(MeshType mesh, long ptId) const = 0;
         virtual MeshType transformMesh(const MHFittingParameters& fittingParameters) const = 0;
         virtual PointType getPointWithId(MeshType mesh, unsigned id) const = 0;
+        virtual PointType transformToModelSpace(const VectorType& rigidTransformParameters, PointType pt) const = 0;
     };
 
 
@@ -175,6 +176,7 @@ namespace statismo {
                   m_uncertaintyPerCorrespondingPoint.insert(std::make_pair(id, std::vector<PointType>()));
               }
 
+
           }
           ~UncertaintyLogger() {
               std::cout << "destructor of uncertainty logger" << std::endl;
@@ -194,9 +196,10 @@ namespace statismo {
                   unsigned id = m_correspondencePoints[i].first;
                   PointType pointOnSample = m_meshOps->getPointWithId(sample, id);
                   m_uncertaintyPerCorrespondingPoint[id].push_back(pointOnSample);
-
               }
 
+              // we keep the parameters, such that we can compute the average at the end
+              m_params.push_back(parameters);
           }
 
           /** \brief Function gets called whenever an algorithm rejects a proposal */
@@ -218,6 +221,11 @@ namespace statismo {
 
           MultiVariateNormalDistribution uncertaintyForCorrespondencePoint(unsigned id) {
 
+              VectorType avgTransformsParameters = VectorType::Zero(m_params.front().GetRigidTransformParameters().rows());
+              for (typename std::list<MHFittingParameters>::const_iterator it = m_params.begin(); it != m_params.end(); ++it) {
+                  avgTransformsParameters += it->GetRigidTransformParameters();
+              }
+              avgTransformsParameters /= m_params.size();
 
               VectorType mean = VectorType::Zero(3);
               MatrixType cov = MatrixType::Zero(3, 3);
@@ -227,14 +235,14 @@ namespace statismo {
 
 
               for (typename std::vector<PointType>::const_iterator it = v.begin(); it != v.end(); ++it) {
-                  VectorType ptAsVec =  m_representer->PointToVector(*it);
+                  VectorType ptAsVec =  m_representer->PointToVector(m_meshOps->transformToModelSpace(avgTransformsParameters, *it));
                   mean += ptAsVec;
               }
               mean /= v.size();
 
 
               for (typename std::vector<PointType>::const_iterator it = v.begin(); it != v.end(); ++it) {
-                  VectorType ptAsVec =  m_representer->PointToVector(*it);
+                  VectorType ptAsVec =  m_representer->PointToVector(m_meshOps->transformToModelSpace(avgTransformsParameters, *it));
                   cov += (ptAsVec - mean) * (ptAsVec -mean).transpose();
               }
               cov /= (v.size() - 1 );
@@ -249,6 +257,7 @@ namespace statismo {
           const MeshOperationsType* m_meshOps;
           std::vector<PointType> m_targetPoints;
           CorrespondencePoints m_correspondencePoints;
+          std::list<MHFittingParameters> m_params;
           std::map<PointId, std::vector<PointType> > m_uncertaintyPerCorrespondingPoint;
       };
 

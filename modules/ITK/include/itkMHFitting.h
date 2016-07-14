@@ -145,6 +145,24 @@ namespace itk {
             return output;
 
         }
+
+
+        virtual PointType transformToModelSpace(const statismo::VectorType& rigidTransformParameters, PointType pt) const {
+            typedef itk::VersorRigid3DTransform<float> RigidTransformType;
+
+            // create a copy of the rigid transform, such that it remains const
+            statismo::VectorType rigidTransformParametersCopy = rigidTransformParameters;
+
+            RigidTransformType::Pointer newRigidTransform = RigidTransformType::New();
+            newRigidTransform->SetCenter(m_rotationCenter);
+            RigidTransformType::ParametersType p(rigidTransformParametersCopy.size());
+            p.SetData(rigidTransformParametersCopy.data());
+            newRigidTransform->SetParameters(p);
+
+            return newRigidTransform->GetInverseTransform()->TransformPoint(pt);
+        }
+
+
         virtual PointType getPointWithId(RepresenterType::MeshPointerType mesh, unsigned id) const {
             return mesh->GetPoint(id);
         }
