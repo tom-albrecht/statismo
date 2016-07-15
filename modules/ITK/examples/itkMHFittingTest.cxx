@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     currentTransform->SetIdentity();
     itk::Point<float, 3> center;
     for (unsigned d =0; d < 3; ++d) {
-        center[d] = image->GetOrigin()[d] + image->GetLargestPossibleRegion().GetSize()[d] * image->GetSpacing()[d];
+        center[d] = image->GetOrigin()[d] + image->GetLargestPossibleRegion().GetSize()[d] * image->GetSpacing()[d] * 0.5;
     }
 
     currentTransform->SetCenter(center);
@@ -171,6 +171,9 @@ int main(int argc, char *argv[]) {
     }
 
 
+    std::cout << "current transform " << currentTransform << std::endl;
+
+
     // compute the uncertainty and set the model accordingly
     PosteriorModelBuilderType::Pointer posteriorModelBuilder = PosteriorModelBuilderType::New();
     PosteriorModelBuilderType::PointValueWithCovarianceListType constraints;
@@ -203,9 +206,9 @@ int main(int argc, char *argv[]) {
 
     aModel->SetStatisticalModel(posteriorModel);
 
-
     FittingStepType::Pointer fittingStep2 = FittingStepType::New();
     fittingStep2->init(image, pimage, correspondingPoints, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, coeffs);
+
     fittingStep2->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(fittingStep->GetOutput()->GetCoefficients()));
 
     for (int i =1; i <= 1000; ++i) {

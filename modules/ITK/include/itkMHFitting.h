@@ -128,10 +128,12 @@ namespace itk {
 
             RigidTransformType::Pointer newRigidTransform = RigidTransformType::New();
             newRigidTransform->SetCenter(m_rotationCenter);
-            RigidTransformType::ParametersType p(fittingParameters.GetRigidTransformParameters().size());
-            p.SetData(fittingParameters.GetRigidTransformParameters().data());
+            statismo::VectorType rigidParams = fittingParameters.GetRigidTransformParameters();
+            RigidTransformType::ParametersType p(rigidParams.size());
+            for (unsigned i = 0 ; i < rigidParams.size(); ++i) {
+                p.SetElement(i, rigidParams[i]);
+            }
             newRigidTransform->SetParameters(p);
-
 
             typedef itk::TransformMeshFilter<MeshType, MeshType, RigidTransformType> TransformMeshFilterType;
 
@@ -150,13 +152,13 @@ namespace itk {
         virtual PointType transformToModelSpace(const statismo::VectorType& rigidTransformParameters, PointType pt) const {
             typedef itk::VersorRigid3DTransform<float> RigidTransformType;
 
-            // create a copy of the rigid transform, such that it remains const
-            statismo::VectorType rigidTransformParametersCopy = rigidTransformParameters;
 
             RigidTransformType::Pointer newRigidTransform = RigidTransformType::New();
             newRigidTransform->SetCenter(m_rotationCenter);
-            RigidTransformType::ParametersType p(rigidTransformParametersCopy.size());
-            p.SetData(rigidTransformParametersCopy.data());
+            RigidTransformType::ParametersType p(rigidTransformParameters.size());
+            for (unsigned i = 0 ; i < rigidTransformParameters.size(); ++i) {
+                p.SetElement(i, rigidTransformParameters[i]);
+            }
             newRigidTransform->SetParameters(p);
 
             return newRigidTransform->GetInverseTransform()->TransformPoint(pt);
@@ -235,9 +237,10 @@ namespace itk {
 
          RigidTransformType::ParametersType GetRigidTransformParameters() {
              statismo::VectorType rigidParameters =  m_samplingParameters.GetRigidTransformParameters();
-            RigidTransformType::ParametersType p(rigidParameters.size());
-            p.SetData(rigidParameters.data());
-
+             RigidTransformType::ParametersType p(rigidParameters.size());
+             for (unsigned i = 0 ; i < rigidParameters.size(); ++i) {
+                 p.SetElement(i, rigidParameters[i]);
+             }
             return p;
         }
 
@@ -335,6 +338,7 @@ namespace itk {
 
         void SetChainToLmAndHU(const CorrespondencePoints correspondencePoints, const std::vector<PointType>& targetPoints, itk::Rigid3DTransform<float>* transform, statismo::VectorType coeffs) {
             statismo::MHFittingParameters initialParameters(coeffs, fromVnlVector(transform->GetParameters()));
+            std::cout << "transform parameters in hu chain " << fromVnlVector(transform->GetParameters()) << std::endl;
           m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, correspondencePoints, targetPoints, m_model->GetstatismoImplObj(), initialParameters);
         }
 
@@ -377,6 +381,7 @@ namespace itk {
             ImplType *impl = ImplType::Create(m_chain);
 
             statismo::MHFittingParameters result = impl->Perform();
+            std::cout << "result rigid " << result.GetRigidTransformParameters() << std::endl;
             m_result = ResultType::New();
             m_result->SetInternalData(m_meshOperations, result);
 
