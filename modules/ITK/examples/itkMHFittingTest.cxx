@@ -202,12 +202,18 @@ int main(int argc, char *argv[]) {
 
     StatisticalModelType::Pointer posteriorModel = posteriorModelBuilder->BuildNewModelFromModel(aModel->GetStatisticalModel(), constraints, false);
 
+
+    // we need to project the old solution in to the model
+
+
+    vnl_vector<float> newCoeffs  = aModel->GetStatisticalModel()->ComputeCoefficients(aModel->GetStatisticalModel()->DrawSample(toVnlVector(coeffs)));
+
     itk::StatismoIO<MeshType>::SaveStatisticalModel(posteriorModel, "/tmp/posterior.h5");
 
     aModel->SetStatisticalModel(posteriorModel);
 
     FittingStepType::Pointer fittingStep2 = FittingStepType::New();
-    fittingStep2->init(image, pimage, correspondingPoints, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, coeffs);
+    fittingStep2->init(image, pimage, correspondingPoints, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, fromVnlVector(newCoeffs));
 
     fittingStep2->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(fittingStep->GetOutput()->GetCoefficients()));
 
