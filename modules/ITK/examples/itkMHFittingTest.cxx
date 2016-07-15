@@ -1,4 +1,4 @@
-#include <iostream>
+  #include <iostream>
 #include <itkMesh.h>
 #include <itkImage.h>
 #include <itkImageFileReader.h>
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     ImageReaderType::Pointer reader = ImageReaderType::New();
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
     //reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
-    reader->SetFileName("/export/skulls/data/shapes/esophagus/aligned/initial/volume-ct/varian-0021.nii");
+    reader->SetFileName("/export/skulls/data/shapes/esophagus/raw/normalized-varian/volume-ct/varian-0021.nii");
 //    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
 
     reader->Update();

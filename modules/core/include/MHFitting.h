@@ -262,6 +262,85 @@ namespace statismo {
       };
 
 
+
+      template <class T>
+      class InLungLogger : public ChainLogger<MHFittingParameters> {
+          typedef typename Representer<T>::PointType PointType;
+          typedef unsigned int PointId;
+
+      public:
+          typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> MeshOperationsType;
+          InLungLogger(const Representer<T>* representer, const MeshOperationsType* meshOps, const char* loggerName)
+
+                  : m_representer(representer),
+                    m_meshOps(meshOps),
+                    m_loggerName(loggerName)
+          {
+          }
+          ~InLungLogger() {
+              std::cout << "destructor of uncertainty logger" << std::endl;
+
+          }
+
+
+          virtual void notifyAccept(
+                  const MHFittingParameters& parameters,
+                  const double& dProbValue,
+                  ProposalGeneratorInterface<MHFittingParameters>* proposal,
+                  DistributionEvaluatorInterface<MHFittingParameters>* evaluator
+          ) {
+
+              typename Representer<T>::DatasetPointerType sample = m_meshOps->transformMesh(parameters);
+              unsigned numPoints = m_representer->GetDomain().GetNumberOfPoints();
+              bool isInsideBone = false;
+              unsigned numInBone = 0;
+              for( int i = 0; i <numPoints; ++i) {
+
+                  if (m_meshOps->huAtPoint(sample, i) > 1150 || m_meshOps->huAtPoint(sample, i) < 400 )   {
+//                      isInsideBone = true;
+//                      break;
+                      numInBone +=  1;
+                  }
+              }
+
+//              if (isInsideBone) {
+//                  distance = -std::numeric_limits<double>::infinity();
+//
+//              } else {
+//                  distance = 0;
+//              }
+
+              std::cout << "Accepted Step in " << m_loggerName << " : New number in bone is " << numInBone << std::endl;
+
+          }
+
+          /** \brief Function gets called whenever an algorithm rejects a proposal */
+          virtual void notifyReject(
+                  const MHFittingParameters& sample,
+                  const double& dProbValue,
+                  ProposalGeneratorInterface<MHFittingParameters>* proposal,
+                  DistributionEvaluatorInterface<MHFittingParameters>* evaluator
+          ) {}
+
+          /** \brief Function gets called whenever an algorithm is reset to a new state */
+          virtual void notifyReset (
+                  const MHFittingParameters& state,
+                  const double& dProbValue,
+                  ProposalGeneratorInterface<MHFittingParameters>* proposal,
+                  DistributionEvaluatorInterface<MHFittingParameters>* evaluator
+          ) {}
+
+
+
+      private:
+          const Representer<T>* m_representer;
+          const MeshOperationsType* m_meshOps;
+          const char* m_loggerName;
+      };
+
+
+
+
       // Proposals
       /*============================================================================*/
       class GaussianModelUpdate : public ProposalGenerator<MHFittingParameters > {
@@ -433,7 +512,7 @@ namespace statismo {
 //              } else {
 //                  distance = 0;
 //              }
-              std::cout << "number in bone is " << numInBone << std::endl;
+
               return distance;
 
           }
@@ -687,9 +766,9 @@ namespace statismo {
             RandomGenerator* rGen = new RandomGenerator(42);
             MHFittingParameters init = MHFittingParameters(initialParameters.GetCoefficients(), initialParameters.GetRigidTransformParameters());
 
-            GaussianModelUpdate* poseAndShapeProposalRough = new GaussianModelUpdate(0.1, 0.05, numPCAComponents, rGen);
-            GaussianModelUpdate* poseAndShapeProposalFine = new GaussianModelUpdate(0.05, 0.02, numPCAComponents, rGen);
-            GaussianModelUpdate* poseAndShapeProposalFinest = new GaussianModelUpdate(0.01,0.01, numPCAComponents, rGen);
+            GaussianModelUpdate* poseAndShapeProposalRough = new GaussianModelUpdate(0.01, 0.005, numPCAComponents, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFine = new GaussianModelUpdate(0.005, 0.002, numPCAComponents, rGen);
+            GaussianModelUpdate* poseAndShapeProposalFinest = new GaussianModelUpdate(0.001,0.001, numPCAComponents, rGen);
 
 
             vector< typename RandomProposal< MHFittingParameters >::GeneratorPair> gaussMixtureProposalVector(3);
@@ -708,8 +787,10 @@ namespace statismo {
             std::vector<DistributionEvaluator<MHFittingParameters >*> huEvaluatorList;
             huEvaluatorList.push_back(huEvaluator);
             huEvaluatorList.push_back(modelPriorEvaluator);
-            
-            QuietLogger <MHFittingParameters>* ql = new QuietLogger<MHFittingParameters>();
+
+
+              QuietLogger<MHFittingParameters>* ql = new QuietLogger<MHFittingParameters>();
+              InLungLogger <T>* loggerFilterChain = new InLungLogger<T>(representer, meshOperations, "filter chain");
             MarkovChain<MHFittingParameters >* huChain = new MetropolisHastings<MHFittingParameters >(gaussMixtureProposal, new ProductEvaluator<MHFittingParameters>(huEvaluatorList), ql, init, rGen);
             MarkovChainProposal<MHFittingParameters>* huChainProposal = new MarkovChainProposal<MHFittingParameters>(huChain, 10);
             
@@ -720,7 +801,8 @@ namespace statismo {
             //lmAndHuEvaluatorList.push_back(huEvaluator);
             lmAndHuEvaluatorList.push_back(modelPriorEvaluator);
 
-            MarkovChain<MHFittingParameters >* lmAndHuChain = new MetropolisHastings<MHFittingParameters >(huChainProposal, new ProductEvaluator<MHFittingParameters>(lmAndHuEvaluatorList), ql, init, rGen);
+              InLungLogger <T>* loggerFinalChain = new InLungLogger<T>(representer, meshOperations, "final chain");
+            MarkovChain<MHFittingParameters >* lmAndHuChain = new MetropolisHastings<MHFittingParameters >(huChainProposal, new ProductEvaluator<MHFittingParameters>(lmAndHuEvaluatorList), loggerFinalChain, init, rGen);
 
             return lmAndHuChain;
           }
@@ -763,7 +845,7 @@ namespace statismo {
             ActiveShapeModelType* asmodel,
             MHFittingParameters& initialParameters,
             ChainLogger<MHFittingParameters>* logger = new QuietLogger<MHFittingParameters>()) {
-              unsigned numPCAComponents = 100;
+              unsigned numPCAComponents = 10;
 
             // basics
             RandomGenerator* rGen = new RandomGenerator(42);

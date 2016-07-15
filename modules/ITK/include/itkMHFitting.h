@@ -381,7 +381,6 @@ namespace itk {
             ImplType *impl = ImplType::Create(m_chain);
 
             statismo::MHFittingParameters result = impl->Perform();
-            std::cout << "result rigid " << result.GetRigidTransformParameters() << std::endl;
             m_result = ResultType::New();
             m_result->SetInternalData(m_meshOperations, result);
 
