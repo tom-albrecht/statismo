@@ -54,6 +54,8 @@ namespace statismo {
         MatrixType covariance;
 
 
+        MultiVariateNormalDistribution() {}
+
         MultiVariateNormalDistribution(VectorType _mean, MatrixType _covariance): mean(_mean), covariance(_covariance) {
             if (!Utils::PseudoInverse(covariance, covInv)) {
                 //FIXME: throw some exception

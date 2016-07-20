@@ -62,6 +62,7 @@
 #include <Sampling/Proposal/MarkovChainProposal.h>
 
 
+
 namespace statismo {
   using namespace sampling;
   using namespace std;
@@ -565,9 +566,8 @@ namespace statismo {
           typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
 
         public:
-          PointEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const CorrespondencePoints& correspondencePoints,  const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
+          PointEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const CorrespondencePoints& correspondencePoints, ActiveShapeModelType* asmodel, PositionEvaluator* evaluator) :
             m_correspondencePoints(correspondencePoints),
-                  m_targetPoints(targetPoints),
             m_asmodel(asmodel),
             m_eval(evaluator),
             m_closestPoint(closestPoint)
@@ -583,13 +583,6 @@ namespace statismo {
 
               typename RepresenterType::DatasetPointerType sample = m_closestPoint->transformMesh(currentSample);
 
-            for( int i = 0; i < m_targetPoints.size(); ++i) {
-
-              PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]).first;
-              double d = m_eval->evalSample(closestPtOnSample-m_targetPoints[i]);
-
-                distance += d;
-            }
 
               for( unsigned i = 0; i < m_correspondencePoints.size(); ++i)  {
 
@@ -603,9 +596,57 @@ namespace statismo {
           }
         private:
           CorrespondencePoints m_correspondencePoints;
-          const vector< PointType > m_targetPoints;
           const ActiveShapeModelType* m_asmodel;
           PositionEvaluator* m_eval;
+          const ClosestPointType* m_closestPoint;
+
+      };
+
+      template <class T>
+      class LineEvaluator : public DistributionEvaluator< MHFittingParameters > {
+          typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
+
+      public:
+          LineEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel) :
+                  m_targetPoints(targetPoints),
+                  m_asmodel(asmodel),
+                  m_closestPoint(closestPoint)
+          {
+              VectorType mean = VectorType::Zero(1);
+              mean(0) = 1.0;
+              MatrixType cov = MatrixType::Zero(1,1);
+              cov(0,0)=1;
+                m_likelihoodModel = MultiVariateNormalDistribution(mean, cov);
+          }
+
+          // DistributionEvaluatorInterface interface
+      public:
+          virtual double evalSample(const MHFittingParameters& currentSample) {
+              double sumOfsquaraedDistance = 0.0;
+
+              // TODO to draw full sample only for landmarks is inefficient
+
+              typename RepresenterType::DatasetPointerType sample = m_closestPoint->transformMesh(currentSample);
+
+              for( int i = 0; i < m_targetPoints.size(); ++i) {
+
+                  PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]).first;
+                  double d = (closestPtOnSample-m_targetPoints[i]).GetNorm();
+
+                  sumOfsquaraedDistance += d * d;
+              }
+              double avgDistance = sumOfsquaraedDistance / m_targetPoints.size();
+              VectorType avgDistanceAsVec(1);
+              avgDistanceAsVec << avgDistance;
+                m_likelihoodModel.logpdf(avgDistanceAsVec);
+
+              return m_likelihoodModel.logpdf(avgDistanceAsVec); ;
+
+          }
+      private:
+          MultiVariateNormalDistribution m_likelihoodModel;
+          const vector< PointType > m_targetPoints;
+          const ActiveShapeModelType* m_asmodel;
           const ClosestPointType* m_closestPoint;
 
       };
@@ -766,27 +807,34 @@ namespace statismo {
             RandomGenerator* rGen = new RandomGenerator(42);
             MHFittingParameters init = MHFittingParameters(initialParameters.GetCoefficients(), initialParameters.GetRigidTransformParameters());
 
-            GaussianModelUpdate* poseAndShapeProposalRough = new GaussianModelUpdate(0.01, 0.005, numPCAComponents, rGen);
-            GaussianModelUpdate* poseAndShapeProposalFine = new GaussianModelUpdate(0.005, 0.002, numPCAComponents, rGen);
-            GaussianModelUpdate* poseAndShapeProposalFinest = new GaussianModelUpdate(0.001,0.001, numPCAComponents, rGen);
+              GaussianModelUpdate* shapeUpdateRough = new GaussianModelUpdate(0.01, 0, numPCAComponents, rGen);
+              GaussianModelUpdate* shapeUpdateFine = new GaussianModelUpdate(0.001, 0, numPCAComponents, rGen);
+              GaussianModelUpdate* shapeUpdateFinest = new GaussianModelUpdate(0.0001, 0, numPCAComponents, rGen);
+              GaussianModelUpdate* poseUpdateRough = new GaussianModelUpdate(0.0, 0.1, numPCAComponents, rGen);
+              GaussianModelUpdate* poseUpdateFine = new GaussianModelUpdate(0.0, 0.01, numPCAComponents, rGen);
 
-
-            vector< typename RandomProposal< MHFittingParameters >::GeneratorPair> gaussMixtureProposalVector(3);
-            gaussMixtureProposalVector[0] = pair<ProposalGenerator<MHFittingParameters >*, double>(poseAndShapeProposalRough, 0.2);
-            gaussMixtureProposalVector[1] = pair<ProposalGenerator<MHFittingParameters >*, double>(poseAndShapeProposalFine, 0.2);
-            gaussMixtureProposalVector[2] = pair<ProposalGenerator<MHFittingParameters >*, double>(poseAndShapeProposalFinest, 0.6);
+            vector< typename RandomProposal< MHFittingParameters >::GeneratorPair> gaussMixtureProposalVector(5);
+            gaussMixtureProposalVector[0] = pair<ProposalGenerator<MHFittingParameters >*, double>(shapeUpdateRough, 0.2);
+            gaussMixtureProposalVector[1] = pair<ProposalGenerator<MHFittingParameters >*, double>(shapeUpdateFine, 0.2);
+              gaussMixtureProposalVector[2] = pair<ProposalGenerator<MHFittingParameters >*, double>(shapeUpdateFinest, 0.2);
+            gaussMixtureProposalVector[3] = pair<ProposalGenerator<MHFittingParameters >*, double>(poseUpdateRough, 0.1);
+              gaussMixtureProposalVector[4] = pair<ProposalGenerator<MHFittingParameters >*, double>(poseUpdateFine, 0.2);
 
             RandomProposal<MHFittingParameters >* gaussMixtureProposal = new RandomProposal<MHFittingParameters >(gaussMixtureProposalVector, rGen);
 
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
-            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, meshOperations, correspondencePoints, targetPoints, asmodel, diffEval);
+            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, meshOperations, correspondencePoints, asmodel, diffEval);
+              LineEvaluator<T>* lineEval = new LineEvaluator<T>(representer, meshOperations, targetPoints, asmodel);
+
             ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
 
             InLungOrBoneEvaluator<T>* huEvaluator = new InLungOrBoneEvaluator<T>(representer, meshOperations, asmodel);
 
             std::vector<DistributionEvaluator<MHFittingParameters >*> huEvaluatorList;
-            huEvaluatorList.push_back(huEvaluator);
+                huEvaluatorList.push_back(huEvaluator);
             huEvaluatorList.push_back(modelPriorEvaluator);
+//              huEvaluatorList.push_back(pointEval);
+//              huEvaluatorList.push_back(lineEval);
 
 
               QuietLogger<MHFittingParameters>* ql = new QuietLogger<MHFittingParameters>();
@@ -797,13 +845,13 @@ namespace statismo {
 
 
             std::vector<DistributionEvaluator<MHFittingParameters >*> lmAndHuEvaluatorList;
-            lmAndHuEvaluatorList.push_back(pointEval);
-            //lmAndHuEvaluatorList.push_back(huEvaluator);
-            lmAndHuEvaluatorList.push_back(modelPriorEvaluator);
+                lmAndHuEvaluatorList.push_back(pointEval);
+              lmAndHuEvaluatorList.push_back(lineEval);
+            //  lmAndHuEvaluatorList.push_back(huEvaluator);
+              lmAndHuEvaluatorList.push_back(modelPriorEvaluator);
 
               InLungLogger <T>* loggerFinalChain = new InLungLogger<T>(representer, meshOperations, "final chain");
             MarkovChain<MHFittingParameters >* lmAndHuChain = new MetropolisHastings<MHFittingParameters >(huChainProposal, new ProductEvaluator<MHFittingParameters>(lmAndHuEvaluatorList), loggerFinalChain, init, rGen);
-
             return lmAndHuChain;
           }
 
@@ -864,7 +912,8 @@ namespace statismo {
             RandomProposal<MHFittingParameters >* gaussMixtureProposal = new RandomProposal<MHFittingParameters >(gaussMixtureProposalVector, rGen);
 
             Gaussian3DPositionDifferenceEvaluator* diffEval = new Gaussian3DPositionDifferenceEvaluator(asmodel->GetRepresenter(), 1.0);
-            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, correspondencePoints, targetPoints, asmodel, diffEval);
+            PointEvaluator<T>* pointEval = new PointEvaluator<T>(representer, closestPoint, correspondencePoints, asmodel, diffEval);
+              LineEvaluator<T>* lineEval = new LineEvaluator<T>(representer, closestPoint, targetPoints, asmodel);
 
               ModelPriorEvaluator* modelPriorEvaluator = new ModelPriorEvaluator();
 
@@ -873,6 +922,7 @@ namespace statismo {
 
             std::vector<DistributionEvaluator<MHFittingParameters >*> evaluatorList;
              evaluatorList.push_back(pointEval);
+              evaluatorList.push_back(lineEval);
              evaluatorList.push_back(modelPriorEvaluator);
 
             MarkovChain<MHFittingParameters >* lmChain = new MetropolisHastings<MHFittingParameters >(gaussMixtureProposal, new ProductEvaluator<MHFittingParameters>(evaluatorList), logger, initialParameters, rGen);

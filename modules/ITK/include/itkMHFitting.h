@@ -248,7 +248,6 @@ namespace itk {
 
 
 
-
         typename TPointSet::Pointer GetMesh() {
             return m_meshOperations->transformMesh(m_samplingParameters);
         }
@@ -339,7 +338,7 @@ namespace itk {
         void SetChainToLmAndHU(const CorrespondencePoints correspondencePoints, const std::vector<PointType>& targetPoints, itk::Rigid3DTransform<float>* transform, statismo::VectorType coeffs) {
             statismo::MHFittingParameters initialParameters(coeffs, fromVnlVector(transform->GetParameters()));
             std::cout << "transform parameters in hu chain " << fromVnlVector(transform->GetParameters()) << std::endl;
-          m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, correspondencePoints, targetPoints, m_model->GetstatismoImplObj(), initialParameters);
+            m_chain = BasicSamplingType::buildLmAndHuChain(m_model->GetStatisticalModel()->GetRepresenter(), m_meshOperations, correspondencePoints, targetPoints, m_model->GetstatismoImplObj(), initialParameters);
         }
 
 
