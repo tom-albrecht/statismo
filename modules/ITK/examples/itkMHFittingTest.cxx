@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
 
     //std::string modelname("/export/skulls/data/shapes/ulna-right/aligned/registered-pami-ams/model-asm/asm-pca-3.h5");
     std::string modelname("//tmp/fancyasm.h5");
-    //std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");
+    //std::string modelname("//home/marcel/data/ulna-right/test/asm-pca-3.h5");(
 
     ActiveShapeModelType::Pointer aModel = ActiveShapeModelType::New();
     RepresenterType::Pointer representer = RepresenterType::New();
@@ -79,7 +79,8 @@ int main(int argc, char *argv[]) {
     ImageReaderType::Pointer reader = ImageReaderType::New();
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
     //reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
-    reader->SetFileName("/export/skulls/data/shapes/esophagus/raw/normalized-varian/volume-ct/varian-0021.nii");
+    //reader->SetFileName("/export/skulls/data/shapes/esophagus/raw/normalized-varian/volume-ct/varian-0021.nii");
+    reader->SetFileName("/home/luetma00/Download/LUCRUSH02.vtk");
 //    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
 
     reader->Update();
@@ -108,14 +109,15 @@ int main(int argc, char *argv[]) {
     
 
     std::vector<PointType> linePoints;
-    linePoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms-line.csv"));
+    linePoints = readLandmarksFile<MeshType>(std::string("/tmp/lucrush2-lms.csv"));
+    //linePoints = readLandmarksFile<MeshType>(std::string("/home/luetma00/Download/LUCRUSH02-line-lms.csv"));
 
     // Get poitn ids of reference and target points
     std::vector<PointType> refPoints;
     refPoints = readLandmarksFile<MeshType>(std::string("/tmp/fancylms.csv"));
 
     std::vector<PointType> targetPoints;
-    targetPoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms.csv"));
+    targetPoints = readLandmarksFile<MeshType>(std::string("/home/luetma00/Download/LUCRUSH02-lms.csv"));
 
 
     typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;
@@ -206,8 +208,7 @@ int main(int argc, char *argv[]) {
     // we need to project the old solution in to the model
 
 
-    vnl_vector<float> newCoeffs  = aModel->GetStatisticalModel()->ComputeCoefficients(aModel->GetStatisticalModel()->DrawSample(toVnlVector(coeffs)));
-
+    vnl_vector<float> newCoeffs  = posteriorModel->ComputeCoefficients(aModel->GetStatisticalModel()->DrawSample(fittingStep->GetOutput()->GetCoefficients()));
     itk::StatismoIO<MeshType>::SaveStatisticalModel(posteriorModel, "/tmp/posterior.h5");
 
     aModel->SetStatisticalModel(posteriorModel);
@@ -215,9 +216,12 @@ int main(int argc, char *argv[]) {
     FittingStepType::Pointer fittingStep2 = FittingStepType::New();
     fittingStep2->init(image, pimage, correspondingPoints, linePoints, aModel, FittingStepType::SamplerPointerType(fitSampler.GetPointer()), mhFitConfig, currentTransform, fromVnlVector(newCoeffs));
 
-    fittingStep2->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(fittingStep->GetOutput()->GetCoefficients()));
 
-    for (int i =1; i <= 1000; ++i) {
+    fittingStep2->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(newCoeffs));
+
+
+
+    for (int i =1; i <= 2000; ++i) {
 
         std::cout << "iteration: " << i << std::endl;
         FittingResultType::Pointer result;
