@@ -142,7 +142,7 @@ namespace itk {
             tf->SetTransform(newRigidTransform);
             tf->Update();
 
-            typename MeshType::Pointer output = tf->GetOutput();
+            MeshType::Pointer output = tf->GetOutput();
             output->DisconnectPipeline();
             return output;
 
@@ -302,7 +302,7 @@ namespace itk {
                   ModelPointerType model,
                   SamplerPointerType sampler,
                   ConfigurationType configuration,
-                  itk::VersorRigid3DTransform<float>::Pointer transform,
+                  itk::Rigid3DTransform<float>* transform,
                   statismo::VectorType coeffs)
         {
             m_model = model;
