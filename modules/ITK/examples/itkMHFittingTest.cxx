@@ -111,13 +111,14 @@ int main(int argc, char *argv[]) {
     std::vector<PointType> linePoints;
     linePoints = readLandmarksFile<MeshType>(std::string("/tmp/lucrush2-lms.csv"));
     //linePoints = readLandmarksFile<MeshType>(std::string("/home/luetma00/Download/LUCRUSH02-line-lms.csv"));
-
+    //linePoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms-line.csv"));
     // Get poitn ids of reference and target points
     std::vector<PointType> refPoints;
     refPoints = readLandmarksFile<MeshType>(std::string("/tmp/fancylms.csv"));
 
     std::vector<PointType> targetPoints;
     targetPoints = readLandmarksFile<MeshType>(std::string("/home/luetma00/Download/LUCRUSH02-lms.csv"));
+    //targetPoints = readLandmarksFile<MeshType>(std::string("/tmp/0021lms.csv"));
 
 
     typedef itk::PointsLocator< typename RepresenterType::MeshType::PointsContainer > PointsLocatorType;

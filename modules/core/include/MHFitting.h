@@ -807,9 +807,9 @@ namespace statismo {
             RandomGenerator* rGen = new RandomGenerator(42);
             MHFittingParameters init = MHFittingParameters(initialParameters.GetCoefficients(), initialParameters.GetRigidTransformParameters());
 
-              GaussianModelUpdate* shapeUpdateRough = new GaussianModelUpdate(0.01, 0, numPCAComponents, rGen);
-              GaussianModelUpdate* shapeUpdateFine = new GaussianModelUpdate(0.001, 0, numPCAComponents, rGen);
-              GaussianModelUpdate* shapeUpdateFinest = new GaussianModelUpdate(0.0001, 0, numPCAComponents, rGen);
+              GaussianModelUpdate* shapeUpdateRough = new GaussianModelUpdate(0.1, 0, numPCAComponents, rGen);
+              GaussianModelUpdate* shapeUpdateFine = new GaussianModelUpdate(0.05, 0, numPCAComponents, rGen);
+              GaussianModelUpdate* shapeUpdateFinest = new GaussianModelUpdate(0.01, 0, numPCAComponents, rGen);
               GaussianModelUpdate* poseUpdateRough = new GaussianModelUpdate(0.0, 0.1, numPCAComponents, rGen);
               GaussianModelUpdate* poseUpdateFine = new GaussianModelUpdate(0.0, 0.01, numPCAComponents, rGen);
 
@@ -841,17 +841,20 @@ namespace statismo {
               InLungLogger <T>* loggerFilterChain = new InLungLogger<T>(representer, meshOperations, "filter chain");
             MarkovChain<MHFittingParameters >* huChain = new MetropolisHastings<MHFittingParameters >(gaussMixtureProposal, new ProductEvaluator<MHFittingParameters>(huEvaluatorList), ql, init, rGen);
             MarkovChainProposal<MHFittingParameters>* huChainProposal = new MarkovChainProposal<MHFittingParameters>(huChain, 10);
-            
 
+              vector< typename RandomProposal< MHFittingParameters >::GeneratorPair> huAndRWMixtureProposalVector(2);
+              huAndRWMixtureProposalVector[0] = pair<ProposalGenerator<MHFittingParameters >*, double>(huChainProposal, 0.5);
+              huAndRWMixtureProposalVector[1] = pair<ProposalGenerator<MHFittingParameters >*, double>(gaussMixtureProposal, 0.5);
+              RandomProposal<MHFittingParameters >* huAndRWMixtureProposal = new RandomProposal<MHFittingParameters >(huAndRWMixtureProposalVector, rGen);
 
             std::vector<DistributionEvaluator<MHFittingParameters >*> lmAndHuEvaluatorList;
                 lmAndHuEvaluatorList.push_back(pointEval);
               lmAndHuEvaluatorList.push_back(lineEval);
-            //  lmAndHuEvaluatorList.push_back(huEvaluator);
+              lmAndHuEvaluatorList.push_back(huEvaluator);
               lmAndHuEvaluatorList.push_back(modelPriorEvaluator);
 
               InLungLogger <T>* loggerFinalChain = new InLungLogger<T>(representer, meshOperations, "final chain");
-            MarkovChain<MHFittingParameters >* lmAndHuChain = new MetropolisHastings<MHFittingParameters >(huChainProposal, new ProductEvaluator<MHFittingParameters>(lmAndHuEvaluatorList), loggerFinalChain, init, rGen);
+            MarkovChain<MHFittingParameters >* lmAndHuChain = new MetropolisHastings<MHFittingParameters >(huAndRWMixtureProposal, new ProductEvaluator<MHFittingParameters>(lmAndHuEvaluatorList), loggerFinalChain, init, rGen);
             return lmAndHuChain;
           }
 
