@@ -25,8 +25,7 @@
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANYlineGES (INCLUDING, BUT NOT LIMITED
  * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -605,15 +604,26 @@ namespace statismo {
       template <class T>
       class LineEvaluator : public DistributionEvaluator< MHFittingParameters > {
           typedef MeshOperations<typename Representer<T>::DatasetPointerType, typename Representer<T>::PointType> ClosestPointType;
-
+          typedef std::map<float, std::vector<VectorType> > LineMapType;
       public:
           LineEvaluator( const Representer<T>* representer, const ClosestPointType* closestPoint, const vector< PointType >& targetPoints, ActiveShapeModelType* asmodel) :
                   m_targetPoints(targetPoints),
                   m_asmodel(asmodel),
                   m_closestPoint(closestPoint)
           {
+
+              // TODO HACK, we separate the points into lines
+              for (unsigned i = 0 ; i < targetPoints.size(); ++i ) {
+                  VectorType pt = representer->PointToVector(targetPoints[i]);
+                  if (m_lineMap.find(pt(2)) != m_lineMap.end()) {
+                        m_lineMap.insert(std::make_pair(pt(2), std::vector<VectorType>()));
+                  }
+                  m_lineMap[pt(2)].push_back(pt);
+
+              }
+              std::cout << "number of lines " << m_lineMap.size();
               VectorType mean = VectorType::Zero(1);
-              mean(0) = 1.0;
+              mean(0) = 0.1;
               MatrixType cov = MatrixType::Zero(1,1);
               cov(0,0)=1;
                 m_likelihoodModel = MultiVariateNormalDistribution(mean, cov);
@@ -621,13 +631,10 @@ namespace statismo {
 
           // DistributionEvaluatorInterface interface
       public:
-          virtual double evalSample(const MHFittingParameters& currentSample) {
+
+
+          double likelihoodForLine(const std::vector<VectorType> & line, typename RepresenterType::DatasetPointerType sample) {
               double sumOfsquaraedDistance = 0.0;
-
-              // TODO to draw full sample only for landmarks is inefficient
-
-              typename RepresenterType::DatasetPointerType sample = m_closestPoint->transformMesh(currentSample);
-
               for( int i = 0; i < m_targetPoints.size(); ++i) {
 
                   PointType closestPtOnSample =  m_closestPoint->findClosestPoint(sample, m_targetPoints[i]).first;
@@ -638,17 +645,30 @@ namespace statismo {
               double avgDistance = sumOfsquaraedDistance / m_targetPoints.size();
               VectorType avgDistanceAsVec(1);
               avgDistanceAsVec << avgDistance;
-                m_likelihoodModel.logpdf(avgDistanceAsVec);
+              m_likelihoodModel.logpdf(avgDistanceAsVec);
 
               return m_likelihoodModel.logpdf(avgDistanceAsVec); ;
+          }
 
+          virtual double evalSample(const MHFittingParameters& currentSample) {
+
+
+              // TODO to draw full sample only for landmarks is inefficient
+
+              typename RepresenterType::DatasetPointerType sample = m_closestPoint->transformMesh(currentSample);
+
+              double sumLikelihood = 0;
+              for (LineMapType::iterator it = m_lineMap.begin(); it != m_lineMap.end(); ++it) {
+                  sumLikelihood += likelihoodForLine(it->second, sample);
+              }
+             return sumLikelihood;
           }
       private:
           MultiVariateNormalDistribution m_likelihoodModel;
           const vector< PointType > m_targetPoints;
           const ActiveShapeModelType* m_asmodel;
           const ClosestPointType* m_closestPoint;
-
+          LineMapType m_lineMap;
       };
 
 
