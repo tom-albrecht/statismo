@@ -1015,11 +1015,6 @@ namespace statismo {
 
 
 
-      statismo::VectorType fromVnlVector(const vnl_vector<float>& v) {
-          return Eigen::Map<const statismo::VectorType>(v.data_block(), v.size());
-
-      }
-
 
   };
 }

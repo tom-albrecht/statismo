@@ -6,8 +6,8 @@
 #include <itkStandardMeshRepresenter.h>
 #include "ASMFitting.h"
 #include <itkEuler3DTransform.h>
-#include <ITK-4.5/itkCenteredTransformInitializer.h>
-#include <ITK-4.5/itkCenteredVersorTransformInitializer.h>
+#include <itkCenteredTransformInitializer.h>
+#include <itkCenteredVersorTransformInitializer.h>
 #include <itkPosteriorModelBuilder.h>
 #include "itkASMNormalDirectionPointSampler.h"
 #include "itkASMNormalDirectionFeatureExtractor.h"
