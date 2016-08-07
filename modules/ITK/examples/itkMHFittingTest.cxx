@@ -56,7 +56,7 @@ statismo::VectorType fromVnlVector(const VnlVectorType& v) {
 
 int main(int argc, char *argv[]) {
 
-    StatismoUI ui;
+    StatismoUI::StatismoUI ui;
 
     std::cout << "Initializing..." << std::endl;
     // FIXME: these should go somewhere less "intrusive"
@@ -162,10 +162,10 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Initialization done." << std::endl;
 
-    Group modelgroup = ui.createGroup("model");
-    ShapeModelTransformationView v = ui.showStatisticalShapeModel(modelgroup, aModel->GetStatisticalModel(), "a model");
+    StatismoUI::Group modelgroup = ui.createGroup("model");
+	StatismoUI::ShapeModelTransformationView v = ui.showStatisticalShapeModel(modelgroup, aModel->GetStatisticalModel(), "a model");
 
-    Group targetgroup = ui.createGroup("target");
+	StatismoUI::Group targetgroup = ui.createGroup("target");
     ui.showImage(targetgroup, shortImage, "target image");
 
     for (int i =1; i <= 1000; ++i) {
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 
         fittingStep->NextSample();
         result = fittingStep->GetOutput();
-        ui.updateShapeModelTransformationView(v.SetPoseTransformation(PoseTransformation(currentTransform)).SetShapeTransformation(result->GetCoefficients()));
+        ui.updateShapeModelTransformationView(v.SetPoseTransformation(StatismoUI::PoseTransformation(currentTransform)).SetShapeTransformation(result->GetCoefficients()));
 
         currentTransform->SetParameters(result->GetRigidTransformParameters());
 
@@ -227,7 +227,7 @@ int main(int argc, char *argv[]) {
         targetPointsForVisualization.push_back(currentTransform->TransformPoint(targetPoint));
     }
 
-    Group group = ui.createGroup("pts");
+    StatismoUI::Group group = ui.createGroup("pts");
     ui.showPointCloud(group, targetPointsForVisualization, "target Points");
 
 
@@ -248,8 +248,8 @@ int main(int argc, char *argv[]) {
 
     fittingStep2->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(newCoeffs));
 
-    Group modelgroupPosterior = ui.createGroup("poster");
-    ShapeModelTransformationView vposterior = ui.showStatisticalShapeModel(modelgroupPosterior, posteriorModel, "a model");
+    StatismoUI::Group modelgroupPosterior = ui.createGroup("poster");
+    StatismoUI::ShapeModelTransformationView vposterior = ui.showStatisticalShapeModel(modelgroupPosterior, posteriorModel, "a model");
 
 
     for (int i =1; i <= 2000; ++i) {
@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
         fittingStep2->NextSample();
         result = fittingStep2->GetOutput();
         currentTransform->SetParameters(result->GetRigidTransformParameters());
-        ui.updateShapeModelTransformationView(vposterior.SetPoseTransformation(PoseTransformation(currentTransform)).SetShapeTransformation(result->GetCoefficients()));
+        ui.updateShapeModelTransformationView(vposterior.SetPoseTransformation(StatismoUI::PoseTransformation(currentTransform)).SetShapeTransformation(result->GetCoefficients()));
 
         itk::MeshFileWriter<MeshType>::Pointer writer = itk::MeshFileWriter<MeshType>::New();
         std::stringstream filename;
