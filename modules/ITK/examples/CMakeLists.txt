@@ -6,6 +6,13 @@ if(MSVC11) #i.e. Visual Studio 2012
   add_definitions( -D BOOST_NO_0X_HDR_INITIALIZER_LIST )
 endif()
 
+
+set(thrift_INCLUDE_DIR "THRIFT_INCLUDE_DIR" CACHE PATH "")
+set(statismoui_DIR "STATISMO_UI_DIR" CACHE PATH "")
+set(thrift_LIBRARY_DIR "THRIFT_LIBRARY_DIR" CACHE PATH "")
+include_directories(${statismo_INCLUDE_DIRS} ${thrift_INCLUDE_DIR} ${statismoui_DIR} )
+link_directories( ${ITK_LIBRARY_DIRS} ${statismo_LIBRARY_DIRS} ${statismoui_DIR} ${thrift_LIBRARY_DIR})
+
 set( _examples
         itkMHFittingTest
   itkActiveShapeModelTest
@@ -23,6 +30,6 @@ set( _examples
 foreach( e ${_examples} )
   add_executable( ${e} ${e}.cxx
   )
-  target_link_libraries( ${e} statismo_core ${ITK_LIBRARIES} )
+  target_link_libraries( ${e} statismo_core ${ITK_LIBRARIES} statismo-ui thrift )
 endforeach()
 

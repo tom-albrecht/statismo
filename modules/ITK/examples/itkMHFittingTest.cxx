@@ -1,3 +1,4 @@
+#include "StatismoUI.h"
   #include <iostream>
 #include <itkMesh.h>
 #include <itkImage.h>
@@ -27,8 +28,10 @@
 
 typedef itk::Mesh<float, 3> MeshType;
 typedef itk::Image<float, 3> ImageType;
+typedef itk::Image<short, 3> ShortImageType;
 typedef itk::ActiveShapeModel<MeshType, ImageType> ActiveShapeModelType;
 typedef itk::ImageFileReader<ImageType> ImageReaderType;
+typedef itk::ImageFileReader<ShortImageType> ShortImageReaderType;
 
 typedef itk::StandardMeshRepresenter<float, 3> RepresenterType;
 typedef RepresenterType::RigidTransformType RigidTransformType;
@@ -53,6 +56,7 @@ statismo::VectorType fromVnlVector(const VnlVectorType& v) {
 
 int main(int argc, char *argv[]) {
 
+    StatismoUI ui;
 
     std::cout << "Initializing..." << std::endl;
     // FIXME: these should go somewhere less "intrusive"
@@ -80,11 +84,22 @@ int main(int argc, char *argv[]) {
     //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
     //reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
     //reader->SetFileName("/export/skulls/data/shapes/esophagus/raw/normalized-varian/volume-ct/varian-0021.nii");
+//    reader->SetFileName("/home/luetma00/Download/LUCRUSH02.vtk");
     reader->SetFileName("/home/luetma00/Download/LUCRUSH02.vtk");
 //    reader->SetFileName("//home/marcel/data/ulna-right/test/image.nii");
 
     reader->Update();
     ImageType::Pointer image = reader->GetOutput();
+
+
+    ShortImageReaderType::Pointer shortreader = ShortImageReaderType::New();
+    //reader->SetFileName("/export/skulls/data/shapes/submandibular_gland_l/aligned/initial/volume-ct/pddca-0522c0002.nii");
+    //reader->SetFileName("/export/skulls/data/shapes/ulna-right/aligned/initial/volume-ct/downsampled-2/vsd-0.nii");
+    //shortreader->SetFileName("/export/skulls/data/shapes/esophagus/raw/normalized-varian/volume-ct/varian-0021.nii");
+    shortreader->SetFileName("/home/luetma00/Download/LUCRUSH02.vtk");
+    shortreader->Update();
+    ShortImageType::Pointer shortImage = shortreader->GetOutput();
+
 
 
     // You should use here
@@ -98,7 +113,6 @@ int main(int argc, char *argv[]) {
     for (unsigned d =0; d < 3; ++d) {
         center[d] = image->GetOrigin()[d] + image->GetLargestPossibleRegion().GetSize()[d] * image->GetSpacing()[d] * 0.5;
     }
-
     currentTransform->SetCenter(center);
 
 
@@ -148,7 +162,11 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Initialization done." << std::endl;
 
+    Group modelgroup = ui.createGroup("model");
+    ShapeModelTransformationView v = ui.showStatisticalShapeModel(modelgroup, aModel->GetStatisticalModel(), "a model");
 
+    Group targetgroup = ui.createGroup("target");
+    ui.showImage(targetgroup, shortImage, "target image");
 
     for (int i =1; i <= 1000; ++i) {
 
@@ -157,6 +175,8 @@ int main(int argc, char *argv[]) {
 
         fittingStep->NextSample();
         result = fittingStep->GetOutput();
+        ui.updateShapeModelTransformationView(v.SetPoseTransformation(PoseTransformation(currentTransform)).SetShapeTransformation(result->GetCoefficients()));
+
         currentTransform->SetParameters(result->GetRigidTransformParameters());
 
         std::cout << "rigid params " << result->GetRigidTransformParameters() << std::endl;
@@ -186,6 +206,10 @@ int main(int argc, char *argv[]) {
 
     MeshType::Pointer ref = aModel->GetStatisticalModel()->GetRepresenter()->GetReference();
     //for (UncertaintyMap::const_iterator it = uncertaintyMap.begin(); it != uncertaintyMap.end(); ++it) {
+
+
+
+    std::list<PointType> targetPointsForVisualization;
     for (unsigned i = 0; i < correspondingPoints.size(); ++i) {
         unsigned id = correspondingPoints[i].first;
         //PointType targetPoint = correspondingPoints[i].second;
@@ -200,7 +224,11 @@ int main(int argc, char *argv[]) {
         StatisticalModelType::PointValuePairType pointValue(refPt ,targetPoint);
         StatisticalModelType::PointValueWithCovariancePairType  pointValueCov(pointValue, uncertainty);
         constraints.push_back(pointValueCov);
+        targetPointsForVisualization.push_back(currentTransform->TransformPoint(targetPoint));
     }
+
+    Group group = ui.createGroup("pts");
+    ui.showPointCloud(group, targetPointsForVisualization, "target Points");
 
 
     StatisticalModelType::Pointer posteriorModel = posteriorModelBuilder->BuildNewModelFromModel(aModel->GetStatisticalModel(), constraints, false);
@@ -220,6 +248,8 @@ int main(int argc, char *argv[]) {
 
     fittingStep2->SetChainToLmAndHU(correspondingPoints, targetPoints, currentTransform, fromVnlVector(newCoeffs));
 
+    Group modelgroupPosterior = ui.createGroup("poster");
+    ShapeModelTransformationView vposterior = ui.showStatisticalShapeModel(modelgroupPosterior, posteriorModel, "a model");
 
 
     for (int i =1; i <= 2000; ++i) {
@@ -230,6 +260,7 @@ int main(int argc, char *argv[]) {
         fittingStep2->NextSample();
         result = fittingStep2->GetOutput();
         currentTransform->SetParameters(result->GetRigidTransformParameters());
+        ui.updateShapeModelTransformationView(vposterior.SetPoseTransformation(PoseTransformation(currentTransform)).SetShapeTransformation(result->GetCoefficients()));
 
         itk::MeshFileWriter<MeshType>::Pointer writer = itk::MeshFileWriter<MeshType>::New();
         std::stringstream filename;

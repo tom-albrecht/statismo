@@ -290,6 +290,10 @@ namespace statismo {
                   DistributionEvaluatorInterface<MHFittingParameters>* evaluator
           ) {
 
+
+
+
+
               typename Representer<T>::DatasetPointerType sample = m_meshOps->transformMesh(parameters);
               unsigned numPoints = m_representer->GetDomain().GetNumberOfPoints();
               bool isInsideBone = false;

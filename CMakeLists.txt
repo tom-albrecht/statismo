@@ -113,6 +113,7 @@ endif()
 find_package( Boost 1.50 COMPONENTS ${REQUIRED_BOOST_COMPONENTS} REQUIRED )
 include_directories( ${Boost_INCLUDE_DIRS} )
 
+link_directories("/home/luetma00//workspaces/statismo/build-statismo-marcel/INSTALL/lib")
 link_directories( ${Boost_LIBRARY_DIRS} )
 add_definitions( -DBOOST_THREAD_VERSION=3 -DBOOST_FILESYSTEM_VERSION=3 )
 
@@ -137,6 +138,8 @@ set(ITK_VERSION ${ITK_VERSION_MAJOR}.${ITK_VERSION_MINOR})
 find_path(ITK_INCLUDE_WITH_HDF5 NAMES itkhdf5/hdf5.h PATHS ${ITK_INCLUDE_DIRS} )
 set(ITK_HDF5_DIR ${ITK_INCLUDE_WITH_HDF5}/itkhdf5)
 set(HDF5_INCLUDE_DIRS ${ITK_HDF5_DIR} ${ITK_HDF5_DIR}/cpp)
+
+
 
 if ( ON_TRAVIS ) # travis runs using systems ITK, which does not have the zlib
 set(HDF5_LIBRARIES itkhdf5_cpp-${ITK_VERSION} itkhdf5-${ITK_VERSION})

@@ -10,6 +10,8 @@ endif()
 
 module_headertest( core )
 
+link_directories(${HDF5_LIBRARY_DIR})
+
 file( GLOB _core_hdrs
   include/*.h include/*.hxx include/*.hpp include/*.txx include/*.tpp
 )
