@@ -13,10 +13,6 @@ include_directories( BEFORE
   ${statismo_SOURCE_DIR}/modules/core/include
 )
 
-
-get_property(inc_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
-message("inc_dirs = ${inc_dirs}")
-
 if( ${BUILD_TESTING} )
   add_subdirectory( tests )
 endif()
@@ -35,7 +31,7 @@ file( GLOB _ITK_hdrs
   include/*.h include/*.hxx include/*.hpp include/*.txx include/*.tpp
 )
 add_custom_target( itk_Headers SOURCES ${_ITK_hdrs})
-set_target_properties(itk_Headers PROPERTIES LINKER_LANGUAGE CXX)
+
 install( FILES ${_ITK_hdrs}
   DESTINATION ${INSTALL_INCLUDE_DIR}/statismo/ITK
 )
